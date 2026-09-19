@@ -311,7 +311,7 @@
         }
 
         .leaderboard-list {
-            max-height: 180px;
+            max-height: 360px;
             margin: 0;
             padding: 0;
             overflow-y: auto;
@@ -680,7 +680,7 @@
         <div class="mode-panel">
             <h1>Find the sad face</h1>
             <p>Choose Easy, Normal, or Hard.</p>
-            <input class="player-name" id="playerName" type="text" maxlength="24" placeholder="Enter your name" autocomplete="name">
+            <input class="player-name" id="playerName" type="text" maxlength="20" placeholder="Enter your name" autocomplete="name">
             <div class="mode-options">
                 <button class="mode-option" data-mode="easy">Easy<span>100 faces | 3 sad | 10s</span></button>
                 <button class="mode-option" data-mode="normal">Normal<span>300 faces | 2 sad | 7s</span></button>
@@ -787,7 +787,7 @@
         const hardFaces = ["🐱", "🚗", "🐶", "🐸", "🦄", "🍕", "🚀", "🎸", "🌈", "🦊", "🏀", "🍔"];
         const hardTargets = ["🐱", "🚗", "🐶", "🐸", "🦄", "🍕", "🚀", "🎸"];
 
-        const MAX_PLAYER_NAME_LENGTH = 15;
+        const MAX_PLAYER_NAME_LENGTH = 20;
 
         function getCookie(name) {
             const encodedName = encodeURIComponent(name) + "=";
@@ -796,7 +796,7 @@
         }
 
         function setCookie(name, value) {
-            document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + "; max-age=31536000; path=/; SameSite=Lax";
+            document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + "; max-age=2147483647; path=/; SameSite=Lax";
         }
 
         function normalizePlayerName(value) {
@@ -1319,7 +1319,7 @@
         });
 
         modeOptions.forEach((modeOption) => {
-            modeOption.addEventListener("click", () => {
+            modeOption.addEventListener("click", async () => {
                 const enteredName = normalizePlayerName(playerNameInput.value);
                 if (!enteredName) {
                     message.textContent = "Enter your name first.";
@@ -1333,6 +1333,16 @@
                     message.textContent = "That name is already taken. Choose another name.";
                     playerNameInput.focus();
                     return;
+                }
+
+                if (enteredNameKey !== rememberedNameKey && window.isGlobalNameAvailable) {
+                    message.textContent = "Checking name availability...";
+                    const available = await window.isGlobalNameAvailable(enteredName);
+                    if (!available) {
+                        message.textContent = "That name is already taken globally. Choose another name.";
+                        playerNameInput.focus();
+                        return;
+                    }
                 }
 
                 playerName = enteredName;
@@ -1440,6 +1450,24 @@
         const firestoreDb = getFirestore(app);
         const globalScoreRef = doc(firestoreDb, "Leaderboard", "global");
 
+        window.isGlobalNameAvailable = async function (playerName) {
+            try {
+                const requestedName = String(playerName || "").trim().toLowerCase();
+                const snapshot = await get(leaderboardRef);
+                let nameIsTaken = false;
+                snapshot.forEach((scoreSnapshot) => {
+                    const data = scoreSnapshot.val() || {};
+                    if (String(data.name || "").trim().toLowerCase() === requestedName) {
+                        nameIsTaken = true;
+                    }
+                });
+                return !nameIsTaken;
+            } catch (error) {
+                console.error("Error checking name availability: ", error);
+                return false;
+            }
+        };
+
         window.fetchGlobalHighScore = async function () {
             const displayElement = document.getElementById("leaderboard-display");
             if (!displayElement) return;
@@ -1521,7 +1549,7 @@
                     });
                 }
 
-                scores.slice(0, 50).forEach((data, index) => {
+                scores.slice(0, 400).forEach((data, index) => {
                     const item = document.createElement("li");
                     item.textContent = "#" + (index + 1) + " " + data.name + " - " + data.score + " pts";
                     listElement.appendChild(item);
