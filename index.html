@@ -366,19 +366,6 @@
             max-height: min(70vh, 620px);
         }
 
-        .player-ranking-list {
-            max-height: 240px;
-            margin: 0;
-            padding: 0;
-            overflow-y: auto;
-            list-style: none;
-        }
-
-        .player-ranking-list li {
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-        }
-
         .leaderboard-list li {
             padding: 5px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.14);
@@ -758,13 +745,6 @@
                 <button class="mode-option" data-mode="normal">Normal<span>300 faces | 2 sad | 7s</span></button>
                 <button class="mode-option" data-mode="hard">Hard<span>400 mixed emojis | 1 special | 6s</span></button>
             </div>
-            <div class="leaderboard-tabs" role="tablist" aria-label="Leaderboard views">
-                <button class="leaderboard-tab active" id="globalTab" type="button" role="tab" aria-selected="true" data-leaderboard-tab="global">Global</button>
-                <button class="leaderboard-tab" id="nearbyTab" type="button" role="tab" aria-selected="false" data-leaderboard-tab="nearby">Your ranking</button>
-            </div>
-            <div class="leaderboard-panel" id="nearbyLeaderboard" role="tabpanel" hidden>
-                <div class="leaderboard" id="leaderboard"></div>
-            </div>
             <div class="leaderboard leaderboard-panel" id="globalLeaderboard" role="tabpanel">
                 <h2>Global leaderboard</h2>
                 <div id="leaderboard-display">Loading top score...</div>
@@ -819,10 +799,6 @@
         const deviceOptions = document.querySelectorAll("[data-device]");
         const modeOptions = document.querySelectorAll("[data-mode]");
         const playerNameInput = document.getElementById("playerName");
-        const leaderboardElement = document.getElementById("leaderboard");
-        const nearbyLeaderboard = document.getElementById("nearbyLeaderboard");
-        const globalLeaderboard = document.getElementById("globalLeaderboard");
-        const leaderboardTabs = document.querySelectorAll("[data-leaderboard-tab]");
         const huntCountdown = document.getElementById("huntCountdown");
         const message = document.getElementById("message");
         const playerLabel = document.getElementById("playerLabel");
@@ -965,64 +941,8 @@
         }
 
         function renderLeaderboard() {
-            const entries = Object.entries(getLeaderboard())
-                .sort((first, second) => second[1] - first[1]);
-            const currentPlayerKey = normalizePlayerName(playerName).toLowerCase();
-            const currentPlayerIndex = entries.findIndex(([name]) => name === currentPlayerKey);
-            let visibleEntries = entries;
-            let firstVisibleRank = 0;
-
-            if (currentPlayerIndex >= 0) {
-                firstVisibleRank = Math.max(0, Math.min(currentPlayerIndex - 2, entries.length - 5));
-                visibleEntries = entries.slice(firstVisibleRank, firstVisibleRank + 5);
-            }
-
-            leaderboardElement.replaceChildren();
-
-            const title = document.createElement("h2");
-            title.textContent = currentPlayerIndex >= 0 ? "Where you are" : "Your local scores";
-            leaderboardElement.appendChild(title);
-
-            if (visibleEntries.length === 0) {
-                const emptyState = document.createElement("div");
-                emptyState.textContent = "No scores yet";
-                leaderboardElement.appendChild(emptyState);
-                return;
-            }
-
-            visibleEntries.forEach(([name, score], index) => {
-                const row = document.createElement("div");
-                row.className = "leaderboard-row";
-                if (name === currentPlayerKey) row.classList.add("current-player");
-                row.textContent = (firstVisibleRank + index + 1) + ". " + formatDisplayName(name);
-                const scoreText = document.createElement("strong");
-                scoreText.textContent = score;
-                row.appendChild(scoreText);
-                leaderboardElement.appendChild(row);
-            });
+            if (window.fetchLeaderboard) window.fetchLeaderboard();
         }
-
-        function setLeaderboardTab(tabName) {
-            const showGlobal = tabName === "global";
-            const showNearby = tabName === "nearby";
-            nearbyLeaderboard.hidden = !showNearby;
-            globalLeaderboard.hidden = !showGlobal;
-            leaderboardTabs.forEach((tab) => {
-                const isActive = tab.dataset.leaderboardTab === tabName;
-                tab.classList.toggle("active", isActive);
-                tab.setAttribute("aria-selected", String(isActive));
-            });
-            if (showGlobal || showNearby) {
-                if (window.fetchLeaderboard) window.fetchLeaderboard();
-            }
-            if (showGlobal) {
-                if (window.fetchGlobalHighScore) window.fetchGlobalHighScore();
-            }
-        }
-
-        leaderboardTabs.forEach((tab) => {
-            tab.addEventListener("click", () => setLeaderboardTab(tab.dataset.leaderboardTab));
-        });
 
         function notifyLeaderboardSync(payload) {
             const nextBoard = payload && typeof payload === "object" ? payload : getLeaderboard();
@@ -1608,8 +1528,7 @@
 
         window.fetchLeaderboard = async function () {
             const listElement = document.getElementById("leaderboard-list");
-            const nearbyElement = document.getElementById("leaderboard");
-            if (!listElement || !nearbyElement) return;
+            if (!listElement) return;
 
             try {
                 const leaderboardQuery = query(leaderboardRef, orderByChild("score"));
@@ -1633,35 +1552,15 @@
                     listElement.appendChild(item);
                 });
 
-                nearbyElement.replaceChildren();
-                const title = document.createElement("h2");
-                title.textContent = "Where you are on the global leaderboard";
-                nearbyElement.appendChild(title);
-
                 const currentName = String(window.currentPlayerName || document.getElementById("playerName").value || "").trim().toLowerCase();
                 const currentIndex = scores.findIndex((data) => data.name.toLowerCase() === currentName);
                 if (currentIndex < 0) {
                     globalRank.textContent = "Global rank: -";
-                    const emptyState = document.createElement("div");
-                    emptyState.textContent = currentName ? "Play to appear on the global leaderboard" : "Enter your name to see your rank";
-                    nearbyElement.appendChild(emptyState);
                     return;
                 }
 
                 const currentPlace = currentIndex + 1;
                 globalRank.textContent = "Global rank: #" + currentPlace;
-                title.textContent = "Your ranking: #" + currentPlace + " on the global leaderboard";
-                const firstIndex = Math.max(0, Math.min(currentIndex - 2, scores.length - 5));
-                scores.slice(firstIndex, firstIndex + 5).forEach((data, index) => {
-                    const row = document.createElement("div");
-                    row.className = "leaderboard-row";
-                    if (data.name.toLowerCase() === currentName) row.classList.add("current-player");
-                    row.textContent = "#" + (firstIndex + index + 1) + " " + data.name;
-                    const scoreText = document.createElement("strong");
-                    scoreText.textContent = data.score;
-                    row.appendChild(scoreText);
-                    nearbyElement.appendChild(row);
-                });
             } catch (error) {
                 console.error("Error fetching leaderboard: ", error);
             }
