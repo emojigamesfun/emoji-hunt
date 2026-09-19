@@ -1546,14 +1546,20 @@
                 });
 
                 const scores = Array.from(scoresByPlayer.values()).sort((first, second) => second.score - first.score);
-                scores.slice(0, MAX_GLOBAL_LEADERBOARD_ENTRIES).forEach((data, index) => {
+                const currentName = String(window.currentPlayerName || document.getElementById("playerName").value || "").trim().toLowerCase();
+                const currentIndex = scores.findIndex((data) => data.name.toLowerCase() === currentName);
+                const visibleScores = currentIndex >= MAX_GLOBAL_LEADERBOARD_ENTRIES
+                    ? scores.slice(0, MAX_GLOBAL_LEADERBOARD_ENTRIES - 1).concat(scores[currentIndex])
+                    : scores.slice(0, MAX_GLOBAL_LEADERBOARD_ENTRIES);
+
+                visibleScores.forEach((data) => {
                     const item = document.createElement("li");
-                    item.textContent = "#" + (index + 1) + " " + data.name + " - " + data.score + " pts";
+                    const rank = scores.findIndex((scoreData) => scoreData.name.toLowerCase() === data.name.toLowerCase()) + 1;
+                    item.textContent = "#" + rank + " " + data.name + " - " + data.score + " pts";
+                    if (data.name.toLowerCase() === currentName) item.classList.add("current-player");
                     listElement.appendChild(item);
                 });
 
-                const currentName = String(window.currentPlayerName || document.getElementById("playerName").value || "").trim().toLowerCase();
-                const currentIndex = scores.findIndex((data) => data.name.toLowerCase() === currentName);
                 if (currentIndex < 0) {
                     globalRank.textContent = "Global rank: -";
                     return;
