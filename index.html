@@ -6,6 +6,19 @@
     <title>Emoji Hunt</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23ffd83d'/%3E%3Ccircle cx='22' cy='25' r='4' fill='%23222'/%3E%3Ccircle cx='42' cy='25' r='4' fill='%23222'/%3E%3Cpath d='M18 37c8 12 20 12 28 0' fill='none' stroke='%23222' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
     <style>
+        :root {
+            --night: #071b36;
+            --ocean: #0b4775;
+            --panel: rgba(7, 36, 70, 0.9);
+            --panel-light: rgba(20, 77, 112, 0.78);
+            --coral: #ff715b;
+            --coral-dark: #d94b4f;
+            --sun: #ffd166;
+            --aqua: #5eead4;
+            --ink: #10243c;
+            --line: rgba(169, 239, 231, 0.34);
+        }
+
         * {
             box-sizing: border-box;
         }
@@ -16,10 +29,20 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #1a73d8, #0a3d8f);
+            font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, var(--night), var(--ocean) 52%, #125f73);
             color: white;
             overflow: hidden;
+        }
+
+        body::before {
+            position: fixed;
+            inset: -30%;
+            z-index: 0;
+            content: "";
+            background: radial-gradient(circle at 20% 20%, rgba(94, 234, 212, 0.18), transparent 27%), radial-gradient(circle at 80% 75%, rgba(255, 113, 91, 0.18), transparent 30%);
+            animation: atmosphere-drift 16s ease-in-out infinite alternate;
+            pointer-events: none;
         }
 
         .container {
@@ -31,29 +54,35 @@
 
         h1 {
             margin-bottom: 20px;
-            font-size: 2.5rem;
+            font-size: clamp(2rem, 5vw, 3rem);
+            letter-spacing: 0.02em;
         }
 
         button {
-            background: #ffdd57;
-            color: #222;
+            background: var(--sun);
+            color: var(--ink);
             border: none;
             border-radius: 12px;
             padding: 14px 28px;
             font-size: 1.2rem;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 8px 20px rgba(2, 18, 36, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
         }
 
         button:hover {
             transform: translateY(-2px) scale(1.03);
-            box-shadow: 0 12px 26px rgba(0, 0, 0, 0.3);
+            filter: brightness(1.06);
+            box-shadow: 0 12px 26px rgba(2, 18, 36, 0.4);
         }
 
         button:active {
             transform: scale(0.98);
+        }
+
+        #btn.button-pop {
+            animation: button-pop 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         button:disabled {
@@ -73,8 +102,8 @@
             left: 18px;
             z-index: 30;
             padding: 10px 14px;
-            background: #d71920;
-            border: 2px solid #ff6b6b;
+            background: rgba(7, 36, 70, 0.88);
+            border: 1px solid var(--line);
             border-radius: 12px;
             backdrop-filter: blur(5px);
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
@@ -88,32 +117,28 @@
             z-index: 30;
             min-width: 150px;
             padding: 10px 14px;
-            background: #d71920;
-            border: 2px solid #ff6b6b;
+            background: rgba(7, 36, 70, 0.88);
+            border: 1px solid var(--line);
             border-radius: 12px;
             text-align: center;
             font-weight: bold;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
         }
 
-        .mode-picker {
+        .mode-picker,
+        .device-picker {
             position: fixed;
             inset: 0;
             z-index: 2000;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(12, 92, 210, 0.96);
+            background: linear-gradient(135deg, rgba(7, 27, 54, 0.97), rgba(11, 71, 117, 0.97));
+            animation: overlay-arrive 0.45s ease both;
         }
 
         .device-picker {
-            position: fixed;
-            inset: 0;
             z-index: 2100;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(18, 103, 220, 0.96);
         }
 
         .device-picker.hidden {
@@ -130,11 +155,18 @@
         .device-option {
             min-height: 112px;
             padding: 14px 10px;
-            border: 2px solid #48dbfb;
+            border: 2px solid var(--aqua);
             border-radius: 12px;
-            background: #a50f19;
+            background: linear-gradient(145deg, var(--coral), var(--coral-dark));
             color: #ffffff;
             font-size: 1rem;
+            box-shadow: inset 0 -4px 0 rgba(112, 24, 44, 0.2), 0 10px 22px rgba(2, 18, 36, 0.25);
+        }
+
+        .device-option:hover,
+        .mode-option:hover {
+            border-color: #ffffff;
+            box-shadow: inset 0 -4px 0 rgba(112, 24, 44, 0.2), 0 14px 28px rgba(2, 18, 36, 0.35);
         }
 
         .device-icon {
@@ -216,9 +248,10 @@
             padding: 28px;
             border: 2px solid rgba(255, 255, 255, 0.35);
             border-radius: 18px;
-            background: linear-gradient(135deg, #0d4db8, #0f64d9);
+            background: linear-gradient(145deg, var(--panel), var(--panel-light));
             text-align: center;
-            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+            box-shadow: 0 22px 60px rgba(2, 18, 36, 0.45);
+            animation: panel-arrive 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
         }
 
         .mode-panel h1 {
@@ -233,9 +266,19 @@
             width: min(100%, 320px);
             margin: 0 auto 20px;
             padding: 11px 12px;
-            border: 2px solid rgba(255, 255, 255, 0.45);
+            border: 2px solid rgba(169, 239, 231, 0.55);
             border-radius: 10px;
             font-size: 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            color: var(--ink);
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .player-name:focus {
+            border-color: var(--aqua);
+            box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.18);
+            transform: translateY(-1px);
         }
 
         .hunt-countdown {
@@ -281,7 +324,7 @@
             padding: 12px;
             overflow-y: auto;
             border-radius: 10px;
-            background: rgba(0, 0, 0, 0.18);
+            background: rgba(2, 18, 36, 0.3);
             text-align: left;
         }
 
@@ -296,14 +339,15 @@
             padding: 9px 12px;
             border: 1px solid rgba(255, 255, 255, 0.35);
             border-radius: 8px;
-            background: rgba(0, 0, 0, 0.18);
+            background: rgba(2, 18, 36, 0.3);
             color: #ffffff;
             font-size: 0.9rem;
         }
 
         .leaderboard-tab.active {
-            background: #ffdd57;
-            color: #222222;
+            background: var(--sun);
+            color: var(--ink);
+            box-shadow: 0 0 0 2px rgba(255, 209, 102, 0.18), 0 6px 16px rgba(2, 18, 36, 0.25);
         }
 
         .leaderboard-panel[hidden] {
@@ -311,11 +355,15 @@
         }
 
         .leaderboard-list {
-            max-height: 360px;
+            max-height: min(60vh, 520px);
             margin: 0;
             padding: 0;
             overflow-y: auto;
             list-style: none;
+        }
+
+        #globalLeaderboard {
+            max-height: min(70vh, 620px);
         }
 
         .player-ranking-list {
@@ -337,7 +385,7 @@
         }
 
         .leaderboard .current-player {
-            color: #ffdd57;
+            color: var(--sun);
             font-weight: bold;
         }
 
@@ -356,11 +404,13 @@
 
         .mode-option {
             padding: 16px 10px;
-            border: 2px solid #ffdd57;
+            border: 2px solid var(--sun);
             border-radius: 12px;
-            background: #d71920;
+            background: linear-gradient(145deg, var(--coral), var(--coral-dark));
             color: #ffffff;
             font-size: 1rem;
+            box-shadow: inset 0 -4px 0 rgba(112, 24, 44, 0.2), 0 10px 22px rgba(2, 18, 36, 0.25);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
         }
 
         .mode-option span {
@@ -662,6 +712,28 @@
                 transform: scale(1.6) translateY(-18px);
             }
         }
+
+        @keyframes atmosphere-drift {
+            from { transform: translate3d(-2%, -1%, 0) scale(1); }
+            to { transform: translate3d(2%, 1%, 0) scale(1.08); }
+        }
+
+        @keyframes overlay-arrive {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes panel-arrive {
+            from { opacity: 0; transform: translateY(18px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes button-pop {
+            0% { transform: scale(1); }
+            35% { transform: scale(1.16); }
+            70% { transform: scale(0.88); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -689,7 +761,6 @@
             <div class="leaderboard-tabs" role="tablist" aria-label="Leaderboard views">
                 <button class="leaderboard-tab active" id="globalTab" type="button" role="tab" aria-selected="true" data-leaderboard-tab="global">Global</button>
                 <button class="leaderboard-tab" id="nearbyTab" type="button" role="tab" aria-selected="false" data-leaderboard-tab="nearby">Your ranking</button>
-                <button class="leaderboard-tab" id="playersTab" type="button" role="tab" aria-selected="false" data-leaderboard-tab="players">Players ranking</button>
             </div>
             <div class="leaderboard-panel" id="nearbyLeaderboard" role="tabpanel" hidden>
                 <div class="leaderboard" id="leaderboard"></div>
@@ -698,10 +769,6 @@
                 <h2>Global leaderboard</h2>
                 <div id="leaderboard-display">Loading top score...</div>
                 <ol class="leaderboard-list" id="leaderboard-list" aria-label="Global leaderboard"></ol>
-            </div>
-            <div class="leaderboard leaderboard-panel" id="playersLeaderboard" role="tabpanel" hidden>
-                <h2>Players ranking</h2>
-                <ol class="player-ranking-list" id="player-ranking-list" aria-label="All players ranking"></ol>
             </div>
         </div>
     </div>
@@ -755,7 +822,6 @@
         const leaderboardElement = document.getElementById("leaderboard");
         const nearbyLeaderboard = document.getElementById("nearbyLeaderboard");
         const globalLeaderboard = document.getElementById("globalLeaderboard");
-        const playersLeaderboard = document.getElementById("playersLeaderboard");
         const leaderboardTabs = document.querySelectorAll("[data-leaderboard-tab]");
         const huntCountdown = document.getElementById("huntCountdown");
         const message = document.getElementById("message");
@@ -808,6 +874,7 @@
         let bestKey = "";
         const leaderboardKey = "smile-global-leaderboard";
         const leaderboardChannelName = "smile-global-leaderboard";
+        const MAX_GLOBAL_LEADERBOARD_ENTRIES = 400;
         const leaderboardChannel = "BroadcastChannel" in window
             ? new BroadcastChannel(leaderboardChannelName)
             : null;
@@ -844,6 +911,28 @@
 
         function playSuccessClick() {
             playTone(1200, 0.08, "square");
+        }
+
+        function playHoorayKazoo() {
+            audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === "suspended") audioContext.resume();
+
+            const startTime = audioContext.currentTime;
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            oscillator.type = "sawtooth";
+            oscillator.frequency.setValueAtTime(220, startTime);
+            oscillator.frequency.linearRampToValueAtTime(330, startTime + 0.1);
+            oscillator.frequency.linearRampToValueAtTime(520, startTime + 0.22);
+            oscillator.frequency.linearRampToValueAtTime(660, startTime + 0.34);
+            gain.gain.setValueAtTime(0.0001, startTime);
+            gain.gain.linearRampToValueAtTime(0.13, startTime + 0.03);
+            gain.gain.setValueAtTime(0.13, startTime + 0.24);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.42);
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+            oscillator.start(startTime);
+            oscillator.stop(startTime + 0.42);
         }
 
         function playCelebrationSound() {
@@ -918,13 +1007,12 @@
             const showNearby = tabName === "nearby";
             nearbyLeaderboard.hidden = !showNearby;
             globalLeaderboard.hidden = !showGlobal;
-            playersLeaderboard.hidden = tabName !== "players";
             leaderboardTabs.forEach((tab) => {
                 const isActive = tab.dataset.leaderboardTab === tabName;
                 tab.classList.toggle("active", isActive);
                 tab.setAttribute("aria-selected", String(isActive));
             });
-            if (showGlobal || showNearby || tabName === "players") {
+            if (showGlobal || showNearby) {
                 if (window.fetchLeaderboard) window.fetchLeaderboard();
             }
             if (showGlobal) {
@@ -972,7 +1060,7 @@
 
         function getLevel(score) {
             const numericScore = Number(score) || 0;
-            return numericScore < 20 ? 0 : Math.floor((numericScore - 20) / 2) + 1;
+            return numericScore < 10 ? 0 : Math.floor((numericScore - 10) / 2) + 1;
         }
 
         function resetScore() {
@@ -1303,6 +1391,10 @@
             if (challengeActive) return;
 
             playSuccessClick();
+            playHoorayKazoo();
+            button.classList.remove("button-pop");
+            void button.offsetWidth;
+            button.classList.add("button-pop");
             buttonClicks += 1;
             count += 1;
             if (count > bestCount) {
@@ -1516,9 +1608,8 @@
 
         window.fetchLeaderboard = async function () {
             const listElement = document.getElementById("leaderboard-list");
-            const playersListElement = document.getElementById("player-ranking-list");
             const nearbyElement = document.getElementById("leaderboard");
-            if (!listElement || !playersListElement || !nearbyElement) return;
+            if (!listElement || !nearbyElement) return;
 
             try {
                 const leaderboardQuery = query(leaderboardRef, orderByChild("score"));
@@ -1536,20 +1627,7 @@
                 });
 
                 const scores = Array.from(scoresByPlayer.values()).sort((first, second) => second.score - first.score);
-                playersListElement.replaceChildren();
-                if (scores.length === 0) {
-                    const emptyPlayersState = document.createElement("li");
-                    emptyPlayersState.textContent = "No players yet";
-                    playersListElement.appendChild(emptyPlayersState);
-                } else {
-                    scores.forEach((data, index) => {
-                        const item = document.createElement("li");
-                        item.textContent = "#" + (index + 1) + " " + data.name + " - " + data.score + " pts";
-                        playersListElement.appendChild(item);
-                    });
-                }
-
-                scores.slice(0, 400).forEach((data, index) => {
+                scores.slice(0, MAX_GLOBAL_LEADERBOARD_ENTRIES).forEach((data, index) => {
                     const item = document.createElement("li");
                     item.textContent = "#" + (index + 1) + " " + data.name + " - " + data.score + " pts";
                     listElement.appendChild(item);
