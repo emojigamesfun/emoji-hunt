@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Hunt</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23ffd83d'/%3E%3Ccircle cx='22' cy='25' r='4' fill='%23222'/%3E%3Ccircle cx='42' cy='25' r='4' fill='%23222'/%3E%3Cpath d='M18 37c8 12 20 12 28 0' fill='none' stroke='%23222' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1a73d8, #0a3d8f);
+            color: white;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            z-index: 5;
+            text-align: center;
+            padding: 30px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2.5rem;
+        }
+
+        button {
+            background: #ffdd57;
+            color: #222;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 28px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 12px 26px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        #message {
+            margin-top: 18px;
+            font-size: 1.1rem;
+            min-height: 24px;
+        }
+
+        .scoreboard {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+            z-index: 30;
+            padding: 10px 14px;
+            background: #d71920;
+            border: 2px solid #ff6b6b;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            font-weight: bold;
+        }
+
+        .timer {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            z-index: 30;
+            min-width: 150px;
+            padding: 10px 14px;
+            background: #d71920;
+            border: 2px solid #ff6b6b;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .mode-picker {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(12, 92, 210, 0.96);
+        }
+
+        .device-picker {
+            position: fixed;
+            inset: 0;
+            z-index: 2100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(18, 103, 220, 0.96);
+        }
+
+        .device-picker.hidden {
+            display: none;
+        }
+
+        .device-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        .device-option {
+            min-height: 112px;
+            padding: 14px 10px;
+            border: 2px solid #48dbfb;
+            border-radius: 12px;
+            background: #a50f19;
+            color: #ffffff;
+            font-size: 1rem;
+        }
+
+        .device-icon {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 2rem;
+        }
+
+        body[data-device="phone"] .mode-panel {
+            width: min(92vw, 390px);
+            padding: 20px 16px;
+        }
+
+        body[data-device="phone"] .scoreboard,
+        body[data-device="phone"] .timer {
+            max-width: calc(50vw - 24px);
+            padding: 8px 10px;
+            font-size: 0.78rem;
+        }
+
+        body[data-device="phone"] .scoreboard {
+            top: 10px;
+            left: 10px;
+        }
+
+        body[data-device="phone"] .timer {
+            top: 10px;
+            right: 10px;
+            min-width: 0;
+        }
+
+        body[data-device="phone"] .container {
+            width: 92vw;
+            padding: 20px 12px;
+        }
+
+        body[data-device="phone"] .container h1 {
+            font-size: 1.8rem;
+        }
+
+        body[data-device="tablet"] .mode-panel {
+            width: min(86vw, 720px);
+            padding: 34px;
+        }
+
+        body[data-device="tablet"] .mode-options {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        body[data-device="tablet"] .scoreboard,
+        body[data-device="tablet"] .timer {
+            padding: 12px 16px;
+            font-size: 1rem;
+        }
+
+        body[data-device="tablet"] .container {
+            width: min(78vw, 650px);
+        }
+
+        body[data-device="pc"] .mode-panel {
+            width: min(78vw, 920px);
+            padding: 42px;
+        }
+
+        body[data-device="pc"] .mode-options {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        body[data-device="pc"] .leaderboard {
+            max-height: 240px;
+        }
+
+        body[data-device="pc"] .container {
+            width: min(60vw, 760px);
+        }
+
+        .mode-panel {
+            width: min(90vw, 620px);
+            padding: 28px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-radius: 18px;
+            background: linear-gradient(135deg, #0d4db8, #0f64d9);
+            text-align: center;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+        }
+
+        .mode-panel h1 {
+            margin-top: 0;
+        }
+
+        .mode-panel p {
+            margin-bottom: 22px;
+        }
+
+        .player-name {
+            width: min(100%, 320px);
+            margin: 0 auto 20px;
+            padding: 11px 12px;
+            border: 2px solid rgba(255, 255, 255, 0.45);
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+
+        .hunt-countdown {
+            position: fixed;
+            inset: 0;
+            z-index: 1500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(3, 35, 88, 0.72);
+            color: #ffffff;
+            font-size: clamp(3rem, 12vw, 9rem);
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        }
+
+        .hunt-countdown.show {
+            display: flex;
+            animation: countdown-pop 0.8s ease;
+        }
+
+        @keyframes countdown-pop {
+            from {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .mode-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .leaderboard {
+            max-height: 180px;
+            margin: 22px auto 0;
+            padding: 12px;
+            overflow-y: auto;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.18);
+            text-align: left;
+        }
+
+        .leaderboard-tabs {
+            display: flex;
+            gap: 8px;
+            margin-top: 22px;
+        }
+
+        .leaderboard-tab {
+            flex: 1;
+            padding: 9px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.18);
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        .leaderboard-tab.active {
+            background: #ffdd57;
+            color: #222222;
+        }
+
+        .leaderboard-panel[hidden] {
+            display: none;
+        }
+
+        .leaderboard-list {
+            max-height: 180px;
+            margin: 0;
+            padding: 0;
+            overflow-y: auto;
+            list-style: none;
+        }
+
+        .player-ranking-list {
+            max-height: 240px;
+            margin: 0;
+            padding: 0;
+            overflow-y: auto;
+            list-style: none;
+        }
+
+        .player-ranking-list li {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .leaderboard-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .leaderboard .current-player {
+            color: #ffdd57;
+            font-weight: bold;
+        }
+
+        .leaderboard h2 {
+            margin: 0 0 8px;
+            font-size: 1.1rem;
+        }
+
+        .leaderboard-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .mode-option {
+            padding: 16px 10px;
+            border: 2px solid #ffdd57;
+            border-radius: 12px;
+            background: #d71920;
+            color: #ffffff;
+            font-size: 1rem;
+        }
+
+        .mode-option span {
+            display: block;
+            margin-top: 6px;
+            font-size: 0.85rem;
+            font-weight: normal;
+        }
+
+        @media (max-width: 560px) {
+            .mode-options,
+            .device-options {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sad-target {
+            position: fixed;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            font-size: 2.1rem;
+            cursor: pointer;
+            user-select: none;
+            pointer-events: auto;
+            text-shadow: 0 0 16px rgba(255, 255, 255, 0.7);
+            animation: target-appear 0.35s ease;
+        }
+
+        .emoji-burst {
+            position: fixed;
+            inset: 0;
+            z-index: 35;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .burst-face {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: visible;
+            font-size: var(--face-size, 1rem);
+            animation: burst-face-pop 0.5s ease-out forwards;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        @keyframes burst-face-pop {
+            0% {
+                opacity: 0;
+                transform: scale(0.2);
+            }
+            15% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes target-appear {
+            from {
+                opacity: 0;
+                transform: scale(0.2) rotate(-20deg);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        @keyframes target-warning {
+            50% {
+                box-shadow: 0 0 0 14px rgba(255, 216, 77, 0.25), 0 10px 24px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        .scoreboard div {
+            margin: 4px 0;
+        }
+
+        .scoreboard button {
+            margin-top: 8px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+        }
+
+        .smile-area {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .smile-token {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            font-size: 2.1rem;
+            background: rgba(255, 255, 255, 0.18);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            user-select: none;
+            pointer-events: auto;
+            cursor: grab;
+            animation: smile-bounce 0.5s ease;
+            text-shadow: 0 0 16px rgba(255, 255, 255, 0.7);
+        }
+
+        .smile-token.dragging {
+            cursor: grabbing;
+            box-shadow: 0 18px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        @keyframes smile-bounce {
+            0% {
+                transform: scale(0.3) rotate(-15deg);
+                opacity: 0;
+            }
+            60% {
+                transform: scale(1.2) rotate(8deg);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        .happy-sign {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.7);
+            font-size: clamp(5rem, 14vw, 12rem);
+            opacity: 0;
+            pointer-events: none;
+            display: none;
+            filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.7));
+            z-index: 1200;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .happy-sign.show {
+            display: block;
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            animation: happy-pop 0.7s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        @keyframes happy-pop {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.2);
+            }
+            60% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.35);
+            }
+            100% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .celebration-backdrop {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1100;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(255, 229, 117, 0.28) 18%, rgba(255, 255, 255, 0) 60%);
+            opacity: 0;
+        }
+
+        .celebration-backdrop.show {
+            animation: backdrop-pop 0.8s ease forwards;
+        }
+
+        @keyframes backdrop-pop {
+            0% {
+                opacity: 0;
+                transform: scale(0.3);
+            }
+            25% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+            100% {
+                opacity: 0.9;
+                transform: scale(1.45);
+            }
+        }
+
+        .confetti-container {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 999;
+        }
+
+        .confetti-container {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 999;
+        }
+
+        .popper {
+            position: absolute;
+            bottom: 20px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #fff7d6, #ffd700 25%, #ff6b6b 70%, #d90429 100%);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.7);
+            opacity: 0;
+            animation: popper-pop 0.9s ease-out forwards;
+        }
+
+        .popper::before,
+        .popper::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: inherit;
+            transform: scale(0.8);
+            opacity: 0.8;
+        }
+
+        .popper::before {
+            transform: translate(-10px, -4px) scale(0.7);
+        }
+
+        .popper::after {
+            transform: translate(10px, -4px) scale(0.7);
+        }
+
+        .left-popper {
+            left: 30px;
+        }
+
+        .right-popper {
+            right: 30px;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            top: calc(100% - 10px);
+            left: 0;
+            width: 12px;
+            height: 18px;
+            border-radius: 3px;
+            opacity: 0;
+            animation: burst 1.6s ease-in-out forwards;
+        }
+
+        @keyframes burst {
+            0% {
+                opacity: 0;
+                transform: translate(0, 0) rotate(0deg);
+            }
+            15% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--x), var(--y)) rotate(var(--rot));
+            }
+        }
+
+        @keyframes popper-pop {
+            0% {
+                opacity: 0;
+                transform: scale(0.4) translateY(10px);
+            }
+            20% {
+                opacity: 1;
+            }
+            70% {
+                opacity: 1;
+                transform: scale(1.2) translateY(-8px);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.6) translateY(-18px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-picker" id="devicePicker">
+        <div class="mode-panel">
+            <h1>Choose your device</h1>
+            <p>Pick a layout before choosing your game mode.</p>
+            <div class="device-options">
+                <button class="device-option" data-device="phone"><span class="device-icon">Phone</span>Phone</button>
+                <button class="device-option" data-device="tablet"><span class="device-icon">Tablet</span>Tablet</button>
+                <button class="device-option" data-device="pc"><span class="device-icon">PC</span>PC</button>
+            </div>
+        </div>
+    </div>
+    <div class="mode-picker" id="modePicker">
+        <div class="mode-panel">
+            <h1>Find the sad face</h1>
+            <p>Choose Easy, Normal, or Hard.</p>
+            <input class="player-name" id="playerName" type="text" maxlength="24" placeholder="Enter your name" autocomplete="name">
+            <div class="mode-options">
+                <button class="mode-option" data-mode="easy">Easy<span>100 faces | 3 sad | 10s</span></button>
+                <button class="mode-option" data-mode="normal">Normal<span>300 faces | 2 sad | 7s</span></button>
+                <button class="mode-option" data-mode="hard">Hard<span>400 mixed emojis | 1 special | 6s</span></button>
+            </div>
+            <div class="leaderboard-tabs" role="tablist" aria-label="Leaderboard views">
+                <button class="leaderboard-tab active" id="globalTab" type="button" role="tab" aria-selected="true" data-leaderboard-tab="global">Global</button>
+                <button class="leaderboard-tab" id="nearbyTab" type="button" role="tab" aria-selected="false" data-leaderboard-tab="nearby">Your ranking</button>
+                <button class="leaderboard-tab" id="playersTab" type="button" role="tab" aria-selected="false" data-leaderboard-tab="players">Players ranking</button>
+            </div>
+            <div class="leaderboard-panel" id="nearbyLeaderboard" role="tabpanel" hidden>
+                <div class="leaderboard" id="leaderboard"></div>
+            </div>
+            <div class="leaderboard leaderboard-panel" id="globalLeaderboard" role="tabpanel">
+                <h2>Global leaderboard</h2>
+                <div id="leaderboard-display">Loading top score...</div>
+                <ol class="leaderboard-list" id="leaderboard-list" aria-label="Global leaderboard"></ol>
+            </div>
+            <div class="leaderboard leaderboard-panel" id="playersLeaderboard" role="tabpanel" hidden>
+                <h2>Players ranking</h2>
+                <ol class="player-ranking-list" id="player-ranking-list" aria-label="All players ranking"></ol>
+            </div>
+        </div>
+    </div>
+
+    <div class="scoreboard">
+        <div id="playerLabel">Player: -</div>
+        <div id="scoreValue">Score: 0</div>
+        <div id="foundScore">Right emojis: 0</div>
+        <div id="bestScore">Best: 0</div>
+        <div id="levelValue">Level: 0</div>
+        <div id="globalRank">Global rank: -</div>
+        <div id="message">Choose a mode</div>
+        <button id="changeModeBtn">Change mode</button>
+    </div>
+    <div class="timer" id="timer">Click the button</div>
+
+    <div class="smile-area" id="smileArea"></div>
+    <div class="celebration-backdrop" id="celebrationBackdrop"></div>
+    <div class="happy-sign" id="happySign" aria-live="assertive">😊</div>
+    <div class="hunt-countdown" id="huntCountdown" aria-live="assertive"></div>
+
+    <div class="container">
+        <h1>Start the Smile Hunt!</h1>
+        <button id="btn">Keep clicking me to start smile hunt</button>
+    </div>
+
+    <script>
+        window.SMILE_FIREBASE = {
+            apiKey: "AIzaSyA8MEWFrx1AEBYJwoISEOyQTqxtaFvfFlw",
+            authDomain: "emoji-hunt-5c5ec.firebaseapp.com",
+            projectId: "emoji-hunt-5c5ec",
+            databaseURL: "https://emoji-hunt-5c5ec-default-rtdb.firebaseio.com",
+            storageBucket: "emoji-hunt-5c5ec.firebasestorage.app",
+            messagingSenderId: "686209011834",
+            appId: "1:686209011834:web:ab0545173a9e88fa542bc3",
+            measurementId: "G-F1F58W1ZXY"
+        };
+
+        window.SMILE_SUPABASE = {
+            url: "https://voxwoephuwyofazorjad.supabase.co",
+            anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZveHdvZXBodXd5b2Zhem9yamFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4NDExMjcsImV4cCI6MjEwNTQxNzEyN30.LV2uznlRFqRBUiqb2XiGWYYoNaJvU583HaxNDP_ttD4"
+        };
+
+        const button = document.getElementById("btn");
+        const changeModeButton = document.getElementById("changeModeBtn");
+        const modePicker = document.getElementById("modePicker");
+        const devicePicker = document.getElementById("devicePicker");
+        const deviceOptions = document.querySelectorAll("[data-device]");
+        const modeOptions = document.querySelectorAll("[data-mode]");
+        const playerNameInput = document.getElementById("playerName");
+        const leaderboardElement = document.getElementById("leaderboard");
+        const nearbyLeaderboard = document.getElementById("nearbyLeaderboard");
+        const globalLeaderboard = document.getElementById("globalLeaderboard");
+        const playersLeaderboard = document.getElementById("playersLeaderboard");
+        const leaderboardTabs = document.querySelectorAll("[data-leaderboard-tab]");
+        const huntCountdown = document.getElementById("huntCountdown");
+        const message = document.getElementById("message");
+        const playerLabel = document.getElementById("playerLabel");
+        const scoreValue = document.getElementById("scoreValue");
+        const foundScore = document.getElementById("foundScore");
+        const bestScore = document.getElementById("bestScore");
+        const levelValue = document.getElementById("levelValue");
+        const globalRank = document.getElementById("globalRank");
+        const timer = document.getElementById("timer");
+        const happySign = document.getElementById("happySign");
+        const celebrationBackdrop = document.getElementById("celebrationBackdrop");
+        const smileArea = document.getElementById("smileArea");
+        let sadTargets = [];
+        let targetTimeout;
+        let timerInterval;
+        let challengeActive = false;
+        let buttonClicks = 0;
+        let nextChallengeAt = randomChallengeClicks();
+        let emojiBurst = null;
+        const modes = {
+            easy: { faceCount: 100, sadCount: 3, timeLimit: 10 },
+            normal: { faceCount: 300, sadCount: 2, timeLimit: 7 },
+            hard: { faceCount: 400, sadCount: 1, timeLimit: 6 }
+        };
+        let selectedMode = null;
+        let firstHunt = true;
+        const smileFaces = ["😊", "😁", "😄", "😎", "🤩", "🥳", "😺"];
+        const hardFaces = ["🐱", "🚗", "🐶", "🐸", "🦄", "🍕", "🚀", "🎸", "🌈", "🦊", "🏀", "🍔"];
+        const hardTargets = ["🐱", "🚗", "🐶", "🐸", "🦄", "🍕", "🚀", "🎸"];
+
+        const MAX_PLAYER_NAME_LENGTH = 15;
+
+        function getCookie(name) {
+            const encodedName = encodeURIComponent(name) + "=";
+            const cookie = document.cookie.split("; ").find((entry) => entry.startsWith(encodedName));
+            return cookie ? decodeURIComponent(cookie.slice(encodedName.length)) : "";
+        }
+
+        function setCookie(name, value) {
+            document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + "; max-age=31536000; path=/; SameSite=Lax";
+        }
+
+        function normalizePlayerName(value) {
+            return String(value || "").trim().replace(/\s+/g, " ").slice(0, MAX_PLAYER_NAME_LENGTH);
+        }
+
+        const savedPlayerName = normalizePlayerName(getCookie("smile-player-name") || localStorage.getItem("smile-player-name") || "");
+        let playerName = savedPlayerName;
+        let bestKey = "";
+        const leaderboardKey = "smile-global-leaderboard";
+        const leaderboardChannelName = "smile-global-leaderboard";
+        const leaderboardChannel = "BroadcastChannel" in window
+            ? new BroadcastChannel(leaderboardChannelName)
+            : null;
+        let count = 0;
+        let correctFound = 0;
+        let bestCount = 0;
+        let happyTimeout;
+        let backdropTimeout;
+        let dragState = null;
+        let currentTargetEmoji = "😢";
+        let audioContext = null;
+        let facePositions = [];
+        let faceBoxSize = 32;
+
+        function playTone(frequency, duration = 0.12, type = "sine") {
+            audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === "suspended") audioContext.resume();
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            oscillator.type = type;
+            oscillator.frequency.value = frequency;
+            gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.16, audioContext.currentTime + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        function playCountdownBeep(step) {
+            playTone(step === "1" ? 880 : 660, 0.18, "sine");
+        }
+
+        function playSuccessClick() {
+            playTone(1200, 0.08, "square");
+        }
+
+        function playCelebrationSound() {
+            playTone(523, 0.12, "triangle");
+            setTimeout(() => playTone(659, 0.12, "triangle"), 110);
+            setTimeout(() => playTone(784, 0.2, "triangle"), 220);
+        }
+
+        function playFailureSound() {
+            playTone(440, 0.18, "sawtooth");
+            setTimeout(() => playTone(330, 0.24, "sawtooth"), 150);
+        }
+
+        function getLeaderboard() {
+            try {
+                return JSON.parse(localStorage.getItem(leaderboardKey)) || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function formatDisplayName(name) {
+            return String(name || "")
+                .replace(/\s+/g, " ")
+                .trim()
+                .split(" ")
+                .filter(Boolean)
+                .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+                .join(" ") || "Player";
+        }
+
+        function renderLeaderboard() {
+            const entries = Object.entries(getLeaderboard())
+                .sort((first, second) => second[1] - first[1]);
+            const currentPlayerKey = normalizePlayerName(playerName).toLowerCase();
+            const currentPlayerIndex = entries.findIndex(([name]) => name === currentPlayerKey);
+            let visibleEntries = entries;
+            let firstVisibleRank = 0;
+
+            if (currentPlayerIndex >= 0) {
+                firstVisibleRank = Math.max(0, Math.min(currentPlayerIndex - 2, entries.length - 5));
+                visibleEntries = entries.slice(firstVisibleRank, firstVisibleRank + 5);
+            }
+
+            leaderboardElement.replaceChildren();
+
+            const title = document.createElement("h2");
+            title.textContent = currentPlayerIndex >= 0 ? "Where you are" : "Your local scores";
+            leaderboardElement.appendChild(title);
+
+            if (visibleEntries.length === 0) {
+                const emptyState = document.createElement("div");
+                emptyState.textContent = "No scores yet";
+                leaderboardElement.appendChild(emptyState);
+                return;
+            }
+
+            visibleEntries.forEach(([name, score], index) => {
+                const row = document.createElement("div");
+                row.className = "leaderboard-row";
+                if (name === currentPlayerKey) row.classList.add("current-player");
+                row.textContent = (firstVisibleRank + index + 1) + ". " + formatDisplayName(name);
+                const scoreText = document.createElement("strong");
+                scoreText.textContent = score;
+                row.appendChild(scoreText);
+                leaderboardElement.appendChild(row);
+            });
+        }
+
+        function setLeaderboardTab(tabName) {
+            const showGlobal = tabName === "global";
+            const showNearby = tabName === "nearby";
+            nearbyLeaderboard.hidden = !showNearby;
+            globalLeaderboard.hidden = !showGlobal;
+            playersLeaderboard.hidden = tabName !== "players";
+            leaderboardTabs.forEach((tab) => {
+                const isActive = tab.dataset.leaderboardTab === tabName;
+                tab.classList.toggle("active", isActive);
+                tab.setAttribute("aria-selected", String(isActive));
+            });
+            if (showGlobal || showNearby || tabName === "players") {
+                if (window.fetchLeaderboard) window.fetchLeaderboard();
+            }
+            if (showGlobal) {
+                if (window.fetchGlobalHighScore) window.fetchGlobalHighScore();
+            }
+        }
+
+        leaderboardTabs.forEach((tab) => {
+            tab.addEventListener("click", () => setLeaderboardTab(tab.dataset.leaderboardTab));
+        });
+
+        function notifyLeaderboardSync(payload) {
+            const nextBoard = payload && typeof payload === "object" ? payload : getLeaderboard();
+            if (leaderboardChannel) {
+                leaderboardChannel.postMessage({ type: "leaderboard-update", payload: nextBoard, timestamp: Date.now() });
+            }
+            window.dispatchEvent(new CustomEvent("leaderboard-sync-update", { detail: nextBoard }));
+            return nextBoard;
+        }
+
+        function saveLeaderboardScore() {
+            const safeName = normalizePlayerName(playerName);
+            if (!safeName) return;
+
+            const leaderboard = getLeaderboard();
+            const nameKey = safeName.toLowerCase();
+            leaderboard[nameKey] = Math.max(Number(leaderboard[nameKey]) || 0, Number(bestCount) || 0);
+            localStorage.setItem(leaderboardKey, JSON.stringify(leaderboard));
+            notifyLeaderboardSync(leaderboard);
+            renderLeaderboard();
+            if (window.submitGlobalScore) {
+                window.submitGlobalScore(safeName, bestCount);
+            }
+            if (window.smileLeaderboardSync) {
+                window.smileLeaderboardSync.syncLeaderboardScore(safeName, bestCount).catch(() => {});
+            }
+        }
+
+        function updateScore() {
+            scoreValue.textContent = "Score: " + count;
+            foundScore.textContent = "Right emojis: " + correctFound;
+            bestScore.textContent = "Best: " + bestCount;
+            levelValue.textContent = "Level: " + getLevel(count);
+        }
+
+        function getLevel(score) {
+            const numericScore = Number(score) || 0;
+            return numericScore < 20 ? 0 : Math.floor((numericScore - 20) / 2) + 1;
+        }
+
+        function resetScore() {
+            count = 0;
+            correctFound = 0;
+            smileArea.replaceChildren();
+            updateScore();
+            message.textContent = "Time ran out! Smiles: 0";
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            timer.textContent = "Click the button";
+        }
+
+        function randomChallengeClicks() {
+            return Math.floor(Math.random() * 19) + 1;
+        }
+
+        function createScatteredPositions(total) {
+            const padding = 24;
+            const area = Math.max(1, (window.innerWidth - padding * 2) * (window.innerHeight - padding * 2));
+            const spacing = Math.max(15, Math.min(34, Math.sqrt(area / total) * 0.62));
+            faceBoxSize = Math.max(14, Math.min(34, spacing * 0.9));
+            const positions = [];
+
+            for (let index = 0; index < total; index++) {
+                let candidate = null;
+                for (let attempt = 0; attempt < 100; attempt++) {
+                    const next = {
+                        x: padding + Math.random() * Math.max(1, window.innerWidth - padding * 2 - faceBoxSize),
+                        y: padding + Math.random() * Math.max(1, window.innerHeight - padding * 2 - faceBoxSize)
+                    };
+                    const hasOverlap = positions.some((position) => {
+                        const distanceX = next.x - position.x;
+                        const distanceY = next.y - position.y;
+                        return Math.hypot(distanceX, distanceY) < spacing;
+                    });
+                    if (!hasOverlap) {
+                        candidate = next;
+                        break;
+                    }
+                }
+
+                if (!candidate) {
+                    candidate = {
+                        x: padding + (index * spacing) % Math.max(1, window.innerWidth - padding * 2 - faceBoxSize),
+                        y: padding + (Math.floor(index * spacing / Math.max(1, window.innerWidth - padding * 2)) * spacing) % Math.max(1, window.innerHeight - padding * 2 - faceBoxSize)
+                    };
+                }
+                positions.push(candidate);
+            }
+            return positions;
+        }
+
+        function launchEmojiFaces() {
+            const burst = document.createElement("div");
+            const burstFaces = selectedMode === modes.hard
+                ? hardFaces.filter((face) => face !== currentTargetEmoji)
+                : selectedMode === modes.easy ? smileFaces : hardFaces;
+            burst.className = "emoji-burst";
+            emojiBurst = burst;
+            facePositions = createScatteredPositions(selectedMode.faceCount);
+
+            for (let i = 0; i < selectedMode.faceCount - selectedMode.sadCount; i++) {
+                const face = document.createElement("span");
+                face.className = "burst-face";
+                face.textContent = burstFaces[Math.floor(Math.random() * burstFaces.length)];
+                face.style.left = facePositions[i].x + "px";
+                face.style.top = facePositions[i].y + "px";
+                face.style.width = faceBoxSize + "px";
+                face.style.height = faceBoxSize + "px";
+                face.style.setProperty("--face-size", faceBoxSize / 16 + "rem");
+                face.addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    failChallenge();
+                });
+                burst.appendChild(face);
+            }
+
+            document.body.appendChild(burst);
+        }
+
+        function runFirstCountdown(onComplete) {
+            const countdownSteps = [getTargetInstruction(), "3", "2", "1"];
+            let step = 0;
+
+            huntCountdown.classList.add("show");
+            const showNextStep = () => {
+                huntCountdown.textContent = countdownSteps[step];
+                if (["3", "2", "1"].includes(countdownSteps[step])) {
+                    playCountdownBeep(countdownSteps[step]);
+                }
+                step += 1;
+                if (step < countdownSteps.length) {
+                    setTimeout(showNextStep, 900);
+                    return;
+                }
+
+                setTimeout(() => {
+                    huntCountdown.classList.remove("show");
+                    onComplete();
+                }, 900);
+            };
+
+            showNextStep();
+        }
+
+        function startChallenge() {
+            challengeActive = true;
+            button.disabled = true;
+            currentTargetEmoji = selectedMode === modes.hard
+                ? hardTargets[Math.floor(Math.random() * hardTargets.length)]
+                : "😢";
+            const beginHunt = () => {
+                message.textContent = selectedMode.faceCount + " emoji faces! Get ready...";
+                timer.textContent = "Get ready...";
+                launchEmojiFaces();
+                setTimeout(() => {
+                    if (!challengeActive) return;
+                    message.textContent = "Find " + currentTargetEmoji + " in " + selectedMode.timeLimit + " seconds!";
+                    let secondsLeft = selectedMode.timeLimit;
+                    timer.textContent = "Sad face: " + secondsLeft + "s";
+                    createSadTargets();
+                    timerInterval = setInterval(() => {
+                        secondsLeft -= 1;
+                        timer.textContent = "Sad face: " + Math.max(secondsLeft, 0) + "s";
+                    }, 1000);
+                }, 1800);
+            };
+
+            firstHunt = false;
+            runFirstCountdown(beginHunt);
+        }
+
+        function getTargetInstruction() {
+            return selectedMode === modes.hard
+                ? "Find " + currentTargetEmoji
+                : "Find the sad face";
+        }
+
+        function completeChallenge() {
+            challengeActive = false;
+            playSuccessClick();
+            button.disabled = false;
+            buttonClicks = 0;
+            nextChallengeAt = randomChallengeClicks();
+            stopTimer();
+            correctFound += 1;
+            updateScore();
+            addSmileToken();
+
+            if (count === 20 || count === 50 || (count >= 100 && count % 50 === 0)) {
+                showHappySign();
+            }
+
+            if (count === 100) {
+                playCelebrationSound();
+                launchConfetti(500);
+            } else {
+                playCelebrationSound();
+                launchConfetti();
+            }
+
+            sadTargets.forEach((target) => target.remove());
+            sadTargets = [];
+            if (emojiBurst) {
+                emojiBurst.remove();
+                emojiBurst = null;
+            }
+            clearTimeout(targetTimeout);
+            message.textContent = "Nice! Go back to clicking the button.";
+        }
+
+        function failChallenge() {
+            if (!challengeActive) return;
+            playFailureSound();
+            sadTargets.forEach((target) => target.remove());
+            sadTargets = [];
+            if (emojiBurst) {
+                emojiBurst.remove();
+                emojiBurst = null;
+            }
+            clearTimeout(targetTimeout);
+            challengeActive = false;
+            button.disabled = false;
+            buttonClicks = 0;
+            nextChallengeAt = randomChallengeClicks();
+            stopTimer();
+            resetScore();
+            message.textContent = "Wrong emoji! Score reset. Click the button to try again.";
+        }
+
+        function createSadTargets() {
+            clearTimeout(targetTimeout);
+            sadTargets.forEach((target) => target.remove());
+            sadTargets = [];
+            const backgroundFaceCount = selectedMode.faceCount - selectedMode.sadCount;
+
+            for (let i = 0; i < selectedMode.sadCount; i++) {
+                const sadTarget = document.createElement("button");
+                sadTarget.className = "sad-target";
+                sadTarget.type = "button";
+                sadTarget.textContent = currentTargetEmoji;
+                sadTarget.setAttribute("aria-label", "Click the special emoji");
+                const position = facePositions[backgroundFaceCount + i];
+                sadTarget.style.left = position.x + "px";
+                sadTarget.style.top = position.y + "px";
+                sadTarget.style.width = faceBoxSize + "px";
+                sadTarget.style.height = faceBoxSize + "px";
+                sadTarget.style.fontSize = faceBoxSize / 16 + "rem";
+                sadTarget.addEventListener("click", completeChallenge);
+                sadTargets.push(sadTarget);
+                (emojiBurst || document.body).appendChild(sadTarget);
+            }
+
+            targetTimeout = setTimeout(() => {
+                failChallenge();
+                message.textContent = "Time ran out! Score reset. Click the button to try again.";
+            }, selectedMode.timeLimit * 1000);
+        }
+
+        function showHappySign() {
+            happySign.classList.remove("show");
+            void happySign.offsetWidth;
+            happySign.classList.add("show");
+            celebrationBackdrop.classList.remove("show");
+            void celebrationBackdrop.offsetWidth;
+            celebrationBackdrop.classList.add("show");
+
+            clearTimeout(happyTimeout);
+            clearTimeout(backdropTimeout);
+
+            happyTimeout = setTimeout(() => {
+                happySign.classList.remove("show");
+            }, 5000);
+
+            backdropTimeout = setTimeout(() => {
+                celebrationBackdrop.classList.remove("show");
+            }, 800);
+        }
+
+        function addSmileToken() {
+            const token = document.createElement("div");
+            token.className = "smile-token";
+            token.textContent = smileFaces[Math.floor(Math.random() * smileFaces.length)];
+
+            const x = 80 + Math.random() * (window.innerWidth - 160);
+            const y = 100 + Math.random() * (window.innerHeight - 200);
+            token.style.left = x + "px";
+            token.style.top = y + "px";
+
+            token.addEventListener("pointerdown", (event) => {
+                dragState = {
+                    token,
+                    offsetX: event.clientX - token.offsetLeft,
+                    offsetY: event.clientY - token.offsetTop
+                };
+                token.classList.add("dragging");
+                token.setPointerCapture(event.pointerId);
+            });
+
+            token.addEventListener("pointerup", () => {
+                if (dragState && dragState.token === token) {
+                    dragState = null;
+                }
+                token.classList.remove("dragging");
+            });
+
+            smileArea.appendChild(token);
+        }
+
+        window.addEventListener("pointermove", (event) => {
+            if (!dragState) return;
+
+            const maxX = window.innerWidth - 60;
+            const maxY = window.innerHeight - 60;
+            const newX = Math.min(Math.max(event.clientX - dragState.offsetX, 20), maxX);
+            const newY = Math.min(Math.max(event.clientY - dragState.offsetY, 20), maxY);
+
+            dragState.token.style.left = newX + "px";
+            dragState.token.style.top = newY + "px";
+        });
+
+        window.addEventListener("pointerup", () => {
+            if (dragState) {
+                dragState.token.classList.remove("dragging");
+                dragState = null;
+            }
+        });
+
+        function launchConfetti(pieceCount = 200) {
+            const colors = ["#ff5a5f", "#feca57", "#48dbfb", "#1dd1a1", "#c56cf0", "#ff9ff3", "#ffffff"];
+            const confettiContainer = document.createElement("div");
+            confettiContainer.className = "confetti-container";
+            document.body.appendChild(confettiContainer);
+
+            const leftPopper = document.createElement("div");
+            leftPopper.className = "popper left-popper";
+            const rightPopper = document.createElement("div");
+            rightPopper.className = "popper right-popper";
+            confettiContainer.appendChild(leftPopper);
+            confettiContainer.appendChild(rightPopper);
+
+            for (let i = 0; i < pieceCount; i++) {
+                const piece = document.createElement("span");
+                const side = i % 2 === 0 ? "left" : "right";
+                const startX = side === "left" ? 45 : window.innerWidth - 55;
+                const startY = window.innerHeight - 10;
+
+                piece.className = "confetti-piece";
+                piece.style.left = startX + "px";
+                piece.style.top = startY + "px";
+                piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.setProperty("--x", (side === "left" ? Math.random() * 260 + 60 : -(Math.random() * 260 + 60)) + "px");
+                piece.style.setProperty("--y", -(Math.random() * 420 + 180) + "px");
+                piece.style.setProperty("--rot", (Math.random() * 360) + "deg");
+                piece.style.animationDelay = (Math.random() * 0.2) + "s";
+                piece.style.transform = "scale(" + (Math.random() * 1.5 + 1) + ")";
+                confettiContainer.appendChild(piece);
+            }
+
+            setTimeout(() => confettiContainer.remove(), 1800);
+        }
+
+        button.addEventListener("click", function () {
+            if (challengeActive) return;
+
+            playSuccessClick();
+            buttonClicks += 1;
+            count += 1;
+            if (count > bestCount) {
+                bestCount = count;
+                setCookie(bestKey, String(bestCount));
+                localStorage.setItem(bestKey, String(bestCount));
+                saveLeaderboardScore();
+            }
+            updateScore();
+            message.textContent = "Button clicks: " + buttonClicks;
+            if (buttonClicks >= nextChallengeAt) {
+                startChallenge();
+            }
+        });
+
+        modeOptions.forEach((modeOption) => {
+            modeOption.addEventListener("click", () => {
+                const enteredName = normalizePlayerName(playerNameInput.value);
+                if (!enteredName) {
+                    message.textContent = "Enter your name first.";
+                    playerNameInput.focus();
+                    return;
+                }
+
+                const enteredNameKey = enteredName.toLowerCase();
+                const rememberedNameKey = normalizePlayerName(savedPlayerName).toLowerCase();
+                if (getLeaderboard()[enteredNameKey] !== undefined && enteredNameKey !== rememberedNameKey) {
+                    message.textContent = "That name is already taken. Choose another name.";
+                    playerNameInput.focus();
+                    return;
+                }
+
+                playerName = enteredName;
+                window.currentPlayerName = playerName;
+                playerNameInput.value = playerName;
+                setCookie("smile-player-name", playerName);
+                localStorage.setItem("smile-player-name", playerName);
+                bestKey = "smile-best-score:" + playerName.toLowerCase();
+                const rememberedBest = getCookie(bestKey) || localStorage.getItem(bestKey) || "0";
+                bestCount = Number(rememberedBest) || 0;
+                setCookie(bestKey, String(bestCount));
+                localStorage.setItem(bestKey, String(bestCount));
+                playerLabel.textContent = "Player: " + playerName;
+                saveLeaderboardScore();
+                selectedMode = modes[modeOption.dataset.mode];
+                modePicker.style.display = "none";
+                firstHunt = true;
+                buttonClicks = 0;
+                nextChallengeAt = randomChallengeClicks();
+                message.textContent = "Mode ready. Click the button to begin.";
+                timer.textContent = "Click the button";
+            });
+        });
+
+        deviceOptions.forEach((deviceOption) => {
+            deviceOption.addEventListener("click", () => {
+                document.body.dataset.device = deviceOption.dataset.device;
+                localStorage.setItem("smile-device", deviceOption.dataset.device);
+                const orientation = deviceOption.dataset.device === "pc" ? "landscape" : "portrait";
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock(orientation).catch(() => {});
+                }
+                devicePicker.classList.add("hidden");
+                modePicker.style.display = "flex";
+            });
+        });
+
+        window.addEventListener("storage", (event) => {
+            if (event.key === leaderboardKey) renderLeaderboard();
+        });
+
+        window.addEventListener("focus", renderLeaderboard);
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) renderLeaderboard();
+        });
+
+        if (leaderboardChannel) {
+            leaderboardChannel.addEventListener("message", (event) => {
+                const payload = event.data && typeof event.data === "object" && event.data.type === "leaderboard-update"
+                    ? event.data.payload
+                    : (event.data && typeof event.data === "object" ? event.data : null);
+
+                if (payload && typeof payload === "object") {
+                    localStorage.setItem(leaderboardKey, JSON.stringify(payload));
+                }
+                renderLeaderboard();
+            });
+        }
+
+        window.addEventListener("leaderboard-sync-update", renderLeaderboard);
+
+        changeModeButton.addEventListener("click", () => {
+            clearTimeout(targetTimeout);
+            clearInterval(timerInterval);
+            sadTargets.forEach((target) => target.remove());
+            sadTargets = [];
+            if (emojiBurst) {
+                emojiBurst.remove();
+                emojiBurst = null;
+            }
+            challengeActive = false;
+            button.disabled = false;
+            selectedMode = null;
+            buttonClicks = 0;
+            count = 0;
+            correctFound = 0;
+            updateScore();
+            timer.textContent = "Choose a mode";
+            modePicker.style.display = "flex";
+        });
+
+        updateScore();
+        playerNameInput.value = savedPlayerName;
+        renderLeaderboard();
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import {
+            getDatabase,
+            ref,
+            push,
+            get,
+            query,
+            orderByChild
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        const app = initializeApp(window.SMILE_FIREBASE);
+        const db = getDatabase(app);
+        const leaderboardRef = ref(db, "leaderboard");
+        const firestoreDb = getFirestore(app);
+        const globalScoreRef = doc(firestoreDb, "Leaderboard", "global");
+
+        window.fetchGlobalHighScore = async function () {
+            const displayElement = document.getElementById("leaderboard-display");
+            if (!displayElement) return;
+
+            try {
+                const snapshot = await getDoc(globalScoreRef);
+                if (!snapshot.exists()) {
+                    displayElement.textContent = "No global high score yet";
+                    return;
+                }
+
+                const data = snapshot.data();
+                displayElement.textContent = "Top Score: " + (data.player || "Anonymous") + " - " + (Number(data.highScore) || 0) + " pts";
+            } catch (error) {
+                displayElement.textContent = "Global high score unavailable";
+                console.error("Error reading global high score: ", error);
+            }
+        };
+
+        window.submitGlobalScore = async function (playerName, score) {
+            try {
+                const safeName = String(playerName || "Player").trim() || "Player";
+                const numericScore = Number(score) || 0;
+                await push(leaderboardRef, {
+                    name: safeName,
+                    score: numericScore,
+                    timestamp: Date.now()
+                });
+                const currentHighScore = await getDoc(globalScoreRef);
+                const currentHighScoreValue = currentHighScore.exists()
+                    ? Number(currentHighScore.data().highScore) || 0
+                    : 0;
+                if (numericScore >= currentHighScoreValue) {
+                    await setDoc(globalScoreRef, {
+                        player: safeName,
+                        highScore: numericScore
+                    }, { merge: true });
+                }
+                console.log("Score saved successfully!");
+                await window.fetchLeaderboard();
+                await window.fetchGlobalHighScore();
+            } catch (error) {
+                console.error("Error saving global score: ", error);
+            }
+        };
+
+        window.fetchLeaderboard = async function () {
+            const listElement = document.getElementById("leaderboard-list");
+            const playersListElement = document.getElementById("player-ranking-list");
+            const nearbyElement = document.getElementById("leaderboard");
+            if (!listElement || !playersListElement || !nearbyElement) return;
+
+            try {
+                const leaderboardQuery = query(leaderboardRef, orderByChild("score"));
+                const snapshot = await get(leaderboardQuery);
+                listElement.replaceChildren();
+
+                const scoresByPlayer = new Map();
+                snapshot.forEach((scoreSnapshot) => {
+                    const data = scoreSnapshot.val() || {};
+                    const name = String(data.name || "Player").trim();
+                    const key = name.toLowerCase();
+                    const score = Number(data.score) || 0;
+                    const previous = scoresByPlayer.get(key);
+                    if (!previous || score > previous.score) scoresByPlayer.set(key, { name, score });
+                });
+
+                const scores = Array.from(scoresByPlayer.values()).sort((first, second) => second.score - first.score);
+                playersListElement.replaceChildren();
+                if (scores.length === 0) {
+                    const emptyPlayersState = document.createElement("li");
+                    emptyPlayersState.textContent = "No players yet";
+                    playersListElement.appendChild(emptyPlayersState);
+                } else {
+                    scores.forEach((data, index) => {
+                        const item = document.createElement("li");
+                        item.textContent = "#" + (index + 1) + " " + data.name + " - " + data.score + " pts";
+                        playersListElement.appendChild(item);
+                    });
+                }
+
+                scores.slice(0, 50).forEach((data, index) => {
+                    const item = document.createElement("li");
+                    item.textContent = "#" + (index + 1) + " " + data.name + " - " + data.score + " pts";
+                    listElement.appendChild(item);
+                });
+
+                nearbyElement.replaceChildren();
+                const title = document.createElement("h2");
+                title.textContent = "Where you are on the global leaderboard";
+                nearbyElement.appendChild(title);
+
+                const currentName = String(window.currentPlayerName || document.getElementById("playerName").value || "").trim().toLowerCase();
+                const currentIndex = scores.findIndex((data) => data.name.toLowerCase() === currentName);
+                if (currentIndex < 0) {
+                    globalRank.textContent = "Global rank: -";
+                    const emptyState = document.createElement("div");
+                    emptyState.textContent = currentName ? "Play to appear on the global leaderboard" : "Enter your name to see your rank";
+                    nearbyElement.appendChild(emptyState);
+                    return;
+                }
+
+                const currentPlace = currentIndex + 1;
+                globalRank.textContent = "Global rank: #" + currentPlace;
+                title.textContent = "Your ranking: #" + currentPlace + " on the global leaderboard";
+                const firstIndex = Math.max(0, Math.min(currentIndex - 2, scores.length - 5));
+                scores.slice(firstIndex, firstIndex + 5).forEach((data, index) => {
+                    const row = document.createElement("div");
+                    row.className = "leaderboard-row";
+                    if (data.name.toLowerCase() === currentName) row.classList.add("current-player");
+                    row.textContent = "#" + (firstIndex + index + 1) + " " + data.name;
+                    const scoreText = document.createElement("strong");
+                    scoreText.textContent = data.score;
+                    row.appendChild(scoreText);
+                    nearbyElement.appendChild(row);
+                });
+            } catch (error) {
+                console.error("Error fetching leaderboard: ", error);
+            }
+        };
+
+        window.fetchLeaderboard();
+        window.fetchGlobalHighScore();
+    </script>
+</body>
+<!-- </html> -->
