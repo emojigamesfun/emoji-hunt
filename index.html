@@ -1090,7 +1090,12 @@
         function getSortedLeaderboard(leaderboard) {
             const modesByPlayer = getLeaderboardModes();
             return Object.entries(leaderboard || {})
-                .map(([key, score]) => ({ name: formatDisplayName(key), score: Number(score) || 0, mode: modesByPlayer[key] || "" }))
+                .map(([key, score]) => {
+                    const separatorIndex = key.lastIndexOf("::");
+                    const playerKey = separatorIndex < 0 ? key : key.slice(0, separatorIndex);
+                    const mode = separatorIndex < 0 ? modesByPlayer[playerKey] || "" : key.slice(separatorIndex + 2);
+                    return { name: formatDisplayName(playerKey), score: Number(score) || 0, mode };
+                })
                 .sort((first, second) => second.score - first.score || first.name.localeCompare(second.name));
         }
 
@@ -1163,16 +1168,18 @@
             const leaderboard = getLeaderboard();
             const leaderboardModes = getLeaderboardModes();
             const nameKey = safeName.toLowerCase();
+            const modeKey = selectedModeName || "unknown";
+            const scoreKey = nameKey + "::" + modeKey;
             const nextScore = Number(bestCount) || 0;
-            if (nextScore >= (Number(leaderboard[nameKey]) || 0)) {
-                leaderboard[nameKey] = nextScore;
+            if (nextScore >= (Number(leaderboard[scoreKey]) || 0)) {
+                leaderboard[scoreKey] = nextScore;
                 if (selectedModeName) leaderboardModes[nameKey] = selectedModeName;
             }
             localStorage.setItem(leaderboardKey, JSON.stringify(leaderboard));
             localStorage.setItem(leaderboardModesKey, JSON.stringify(leaderboardModes));
             notifyLeaderboardSync(leaderboard);
             renderLeaderboard();
-            if (window.submitGlobalScore) {
+            if (window.submitGlobalScore && nextScore > 0) {
                 window.submitGlobalScore(safeName, bestCount, selectedModeName);
             }
             if (window.smileLeaderboardSync) {
@@ -1701,13 +1708,13 @@
                 playerNameInput.value = playerName;
                 setCookie("smile-player-name", playerName);
                 localStorage.setItem("smile-player-name", playerName);
-                bestKey = "smile-best-score:" + playerName.toLowerCase();
+                selectedMode = modes[modeOption.dataset.mode];
+                selectedModeName = modeOption.dataset.mode;
+                bestKey = "smile-best-score:" + playerName.toLowerCase() + ":" + selectedModeName;
                 const rememberedBest = getCookie(bestKey) || localStorage.getItem(bestKey) || "0";
                 bestCount = Number(rememberedBest) || 0;
                 setCookie(bestKey, String(bestCount));
                 localStorage.setItem(bestKey, String(bestCount));
-                selectedMode = modes[modeOption.dataset.mode];
-                selectedModeName = modeOption.dataset.mode;
                 playerLabel.textContent = "Player: " + playerName + " | Lv. " + getLevel(count);
                 saveLeaderboardScore();
                 modePicker.style.display = "none";
@@ -1790,27 +1797,28 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously, sendPasswordResetEmail, setPersistence, browserLocalPersistence, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import {
-            getDatabase,
-            ref,
-            push,
-            get,
-            onValue
-        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+            addDoc,
+            collection,
+            getDocs,
+            getFirestore,
+            onSnapshot
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         const app = initializeApp(window.SMILE_FIREBASE);
         const auth = getAuth(app);
-        const db = getDatabase(app);
-        const leaderboardRef = ref(db, "leaderboard");
+        const firestore = getFirestore(app);
+        const leaderboardCollection = collection(firestore, "leaderboard");
+        let anonymousAuthAttempt = null;
 
         async function ensureLeaderboardAuth() {
             if (auth.currentUser) return auth.currentUser;
-            try {
-                await signInAnonymously(auth);
-                return auth.currentUser;
-            } catch (error) {
-                console.warn("Anonymous sign-in is unavailable; using public leaderboard access.", error);
-                return null;
+            if (!anonymousAuthAttempt) {
+                anonymousAuthAttempt = signInAnonymously(auth).catch((error) => {
+                    console.warn("Anonymous sign-in is unavailable; using public leaderboard access.", error);
+                    return null;
+                });
             }
+            return anonymousAuthAttempt;
         }
 
         window.createSmileAccount = async function (email, password, displayName) {
@@ -1866,11 +1874,12 @@
         window.isGlobalNameAvailable = async function (playerName) {
             try {
                 const requestedName = String(playerName || "").trim().toLowerCase();
-                const snapshot = await get(leaderboardRef);
+                const snapshot = await getDocs(leaderboardCollection);
                 let nameIsTaken = false;
                 snapshot.forEach((scoreSnapshot) => {
-                    const data = scoreSnapshot.val() || {};
-                    if (String(data.name || "").trim().toLowerCase() === requestedName) {
+                    const data = scoreSnapshot.data() || {};
+                    const name = String(data.name || data.username || "").trim().toLowerCase();
+                    if (name && name !== "global" && name === requestedName) {
                         nameIsTaken = true;
                     }
                 });
@@ -1886,13 +1895,15 @@
             if (!displayElement) return;
 
             try {
-                const snapshot = await get(leaderboardRef);
+                const snapshot = await getDocs(leaderboardCollection);
                 let topScore = null;
                 snapshot.forEach((scoreSnapshot) => {
-                    const data = scoreSnapshot.val() || {};
-                    const score = Number(data.score) || 0;
+                    const data = scoreSnapshot.data() || {};
+                    const name = String(data.name || data.username || "").trim();
+                    const score = Number(data.score);
+                    if (!name || !Number.isFinite(score)) return;
                     if (!topScore || score > topScore.score) {
-                        topScore = { name: String(data.name || "Anonymous"), score, mode: String(data.mode || "") };
+                        topScore = { name, score, mode: String(data.mode || "") };
                     }
                 });
 
@@ -1910,10 +1921,9 @@
 
         window.submitGlobalScore = async function (playerName, score, mode) {
             try {
-                await ensureLeaderboardAuth();
                 const safeName = String(playerName || "Player").trim() || "Player";
                 const numericScore = Number(score) || 0;
-                await push(leaderboardRef, {
+                await addDoc(leaderboardCollection, {
                     name: safeName,
                     score: numericScore,
                     mode: mode || "",
@@ -1924,6 +1934,10 @@
                 await window.fetchGlobalHighScore();
             } catch (error) {
                 console.error("Error saving global score: ", error);
+                const isPermissionError = error && error.code === "permission-denied";
+                message.textContent = isPermissionError
+                    ? "Score could not sync. Allow leaderboard creates in Firestore rules."
+                    : "Guest score could not sync. Check your internet connection.";
             }
         };
 
@@ -1931,24 +1945,25 @@
             if (!document.getElementById("leaderboard-list-easy")) return;
 
             try {
-                const snapshot = await get(leaderboardRef);
+                const snapshot = await getDocs(leaderboardCollection);
 
-                const scoresByPlayer = new Map(window.getSortedLeaderboard(getLeaderboard()).map((data) => [data.name.toLowerCase(), data]));
+                const scoresByPlayer = new Map(window.getSortedLeaderboard(getLeaderboard()).map((data) => [data.name.toLowerCase() + "::" + data.mode, data]));
                 snapshot.forEach((scoreSnapshot) => {
-                    const data = scoreSnapshot.val() || {};
-                    const name = String(data.name || "Player").trim();
-                    const key = name.toLowerCase();
-                    const score = Number(data.score) || 0;
-                    const previous = scoresByPlayer.get(key);
+                    const data = scoreSnapshot.data() || {};
+                    const name = String(data.name || data.username || "").trim();
                     const mode = String(data.mode || "");
-                    if (!previous || score > previous.score || (!previous.mode && mode)) {
-                        scoresByPlayer.set(key, { name, score: Math.max(score, previous ? previous.score : 0), mode: mode || (previous && previous.mode) || "" });
+                    const score = Number(data.score);
+                    if (!name || !Number.isFinite(score)) return;
+                    const key = name.toLowerCase() + "::" + mode;
+                    const previous = scoresByPlayer.get(key);
+                    if (!previous || score > previous.score) {
+                        scoresByPlayer.set(key, { name, score, mode });
                     }
                 });
 
                 const scores = Array.from(scoresByPlayer.values()).sort((first, second) => second.score - first.score || first.name.localeCompare(second.name));
                 const localScores = Object.fromEntries(Array.from(scoresByPlayer.entries()).map(([key, data]) => [key, data.score]));
-                const localModes = Object.fromEntries(Array.from(scoresByPlayer.entries()).filter(([, data]) => data.mode).map(([key, data]) => [key, data.mode]));
+                const localModes = Object.fromEntries(Array.from(scoresByPlayer.entries()).filter(([, data]) => data.mode).map(([key, data]) => [key.split("::")[0], data.mode]));
                 localStorage.setItem("smile-global-leaderboard", JSON.stringify(localScores));
                 localStorage.setItem("smile-global-leaderboard-modes", JSON.stringify(localModes));
                 const currentName = String(window.currentPlayerName || document.getElementById("playerName").value || "").trim().toLowerCase();
@@ -1968,7 +1983,7 @@
             }
         };
 
-        onValue(leaderboardRef, () => {
+        onSnapshot(leaderboardCollection, () => {
             window.fetchLeaderboard();
             window.fetchGlobalHighScore();
         }, (error) => {
