@@ -1711,23 +1711,24 @@
     <script src="script.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously, sendPasswordResetEmail, setPersistence, browserLocalPersistence, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import {
             getDatabase,
             ref,
             push,
-            get,
-            query,
-            orderByChild
+            get
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const app = initializeApp(window.SMILE_FIREBASE);
         const auth = getAuth(app);
         const db = getDatabase(app);
         const leaderboardRef = ref(db, "leaderboard");
-        const firestoreDb = getFirestore(app);
-        const globalScoreRef = doc(firestoreDb, "Leaderboard", "global");
+
+        async function ensureLeaderboardAuth() {
+            if (auth.currentUser) return auth.currentUser;
+            await signInAnonymously(auth);
+            return auth.currentUser;
+        }
 
         window.createSmileAccount = async function (email, password, displayName) {
             try {
@@ -1802,14 +1803,22 @@
             if (!displayElement) return;
 
             try {
-                const snapshot = await getDoc(globalScoreRef);
-                if (!snapshot.exists()) {
+                const snapshot = await get(leaderboardRef);
+                let topScore = null;
+                snapshot.forEach((scoreSnapshot) => {
+                    const data = scoreSnapshot.val() || {};
+                    const score = Number(data.score) || 0;
+                    if (!topScore || score > topScore.score) {
+                        topScore = { name: String(data.name || "Anonymous"), score };
+                    }
+                });
+
+                if (!topScore) {
                     displayElement.textContent = "No global high score yet";
                     return;
                 }
 
-                const data = snapshot.data();
-                displayElement.textContent = "Top Score: " + (data.player || "Anonymous") + " - " + (Number(data.highScore) || 0) + " pts";
+                displayElement.textContent = "Top Score: " + topScore.name + " - " + topScore.score + " pts";
             } catch (error) {
                 displayElement.textContent = "Global high score unavailable";
                 console.error("Error reading global high score: ", error);
@@ -1818,6 +1827,7 @@
 
         window.submitGlobalScore = async function (playerName, score) {
             try {
+                await ensureLeaderboardAuth();
                 const safeName = String(playerName || "Player").trim() || "Player";
                 const numericScore = Number(score) || 0;
                 await push(leaderboardRef, {
@@ -1825,16 +1835,6 @@
                     score: numericScore,
                     timestamp: Date.now()
                 });
-                const currentHighScore = await getDoc(globalScoreRef);
-                const currentHighScoreValue = currentHighScore.exists()
-                    ? Number(currentHighScore.data().highScore) || 0
-                    : 0;
-                if (numericScore >= currentHighScoreValue) {
-                    await setDoc(globalScoreRef, {
-                        player: safeName,
-                        highScore: numericScore
-                    }, { merge: true });
-                }
                 console.log("Score saved successfully!");
                 await window.fetchLeaderboard();
                 await window.fetchGlobalHighScore();
@@ -1848,8 +1848,7 @@
             if (!listElement) return;
 
             try {
-                const leaderboardQuery = query(leaderboardRef, orderByChild("score"));
-                const snapshot = await get(leaderboardQuery);
+                const snapshot = await get(leaderboardRef);
                 listElement.replaceChildren();
 
                 const scoresByPlayer = new Map(window.getSortedLeaderboard(getLeaderboard()).map((data) => [data.name.toLowerCase(), data]));
