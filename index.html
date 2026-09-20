@@ -1807,7 +1807,7 @@
         const app = initializeApp(window.SMILE_FIREBASE);
         const auth = getAuth(app);
         const firestore = getFirestore(app);
-        const leaderboardCollection = collection(firestore, "leaderboard");
+        const leaderboardCollection = collection(firestore, "Leaderboard");
         let anonymousAuthAttempt = null;
 
         async function ensureLeaderboardAuth() {

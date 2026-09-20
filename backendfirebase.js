@@ -17,7 +17,7 @@ const app = initializeApp({
   measurementId: "G-F1F58W1ZXY"
 });
 
-const leaderboardCollection = collection(getFirestore(app), "leaderboard");
+const leaderboardCollection = collection(getFirestore(app), "Leaderboard");
 
 export async function submitScore(name, score, mode) {
   await addDoc(leaderboardCollection, {
