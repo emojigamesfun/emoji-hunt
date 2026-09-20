@@ -1787,7 +1787,6 @@
 
         updateScore();
         playerNameInput.value = savedPlayerName;
-        renderLeaderboard();
     </script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -1800,6 +1799,7 @@
             addDoc,
             collection,
             getDocs,
+            getDocsFromServer,
             getFirestore,
             onSnapshot
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -1873,8 +1873,9 @@
 
         window.isGlobalNameAvailable = async function (playerName) {
             try {
+                await ensureLeaderboardAuth();
                 const requestedName = String(playerName || "").trim().toLowerCase();
-                const snapshot = await getDocs(leaderboardCollection);
+                const snapshot = await getDocsFromServer(leaderboardCollection);
                 let nameIsTaken = false;
                 snapshot.forEach((scoreSnapshot) => {
                     const data = scoreSnapshot.data() || {};
@@ -1886,7 +1887,7 @@
                 return !nameIsTaken;
             } catch (error) {
                 console.error("Error checking name availability: ", error);
-                return false;
+                return true;
             }
         };
 
@@ -1895,7 +1896,8 @@
             if (!displayElement) return;
 
             try {
-                const snapshot = await getDocs(leaderboardCollection);
+                await ensureLeaderboardAuth();
+                const snapshot = await getDocsFromServer(leaderboardCollection);
                 let topScore = null;
                 snapshot.forEach((scoreSnapshot) => {
                     const data = scoreSnapshot.data() || {};
@@ -1921,6 +1923,7 @@
 
         window.submitGlobalScore = async function (playerName, score, mode) {
             try {
+                await ensureLeaderboardAuth();
                 const safeName = String(playerName || "Player").trim() || "Player";
                 const numericScore = Number(score) || 0;
                 await addDoc(leaderboardCollection, {
@@ -1945,9 +1948,10 @@
             if (!document.getElementById("leaderboard-list-easy")) return;
 
             try {
-                const snapshot = await getDocs(leaderboardCollection);
+                await ensureLeaderboardAuth();
+                const snapshot = await getDocsFromServer(leaderboardCollection);
 
-                const scoresByPlayer = new Map(window.getSortedLeaderboard(getLeaderboard()).map((data) => [data.name.toLowerCase() + "::" + data.mode, data]));
+                const scoresByPlayer = new Map();
                 snapshot.forEach((scoreSnapshot) => {
                     const data = scoreSnapshot.data() || {};
                     const name = String(data.name || data.username || "").trim();
@@ -1979,19 +1983,27 @@
                 globalRank.textContent = "Global rank: #" + currentPlace;
             } catch (error) {
                 console.error("Error fetching leaderboard: ", error);
-                window.renderLocalLeaderboard();
+                document.getElementById("leaderboard-list-easy").replaceChildren();
+                document.getElementById("leaderboard-list-normal").replaceChildren();
+                document.getElementById("leaderboard-list-hard").replaceChildren();
+                document.getElementById("leaderboard-display").textContent = "Global leaderboard unavailable";
+                globalRank.textContent = "Global rank: -";
             }
         };
 
-        onSnapshot(leaderboardCollection, () => {
+        async function startLeaderboardSync() {
+            await ensureLeaderboardAuth();
+            onSnapshot(leaderboardCollection, () => {
+                window.fetchLeaderboard();
+                window.fetchGlobalHighScore();
+            }, (error) => {
+                console.error("Realtime leaderboard subscription failed: ", error);
+            });
             window.fetchLeaderboard();
             window.fetchGlobalHighScore();
-        }, (error) => {
-            console.error("Realtime leaderboard subscription failed: ", error);
-        });
+        }
 
-        window.fetchLeaderboard();
-        window.fetchGlobalHighScore();
+        startLeaderboardSync();
     </script>
 </body>
 <!-- </html> -->

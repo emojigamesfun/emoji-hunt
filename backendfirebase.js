@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   addDoc,
   collection,
-  getDocs,
+  getDocsFromServer,
   getFirestore,
   onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -29,7 +29,7 @@ export async function submitScore(name, score, mode) {
 }
 
 export async function getTopScores(limit = 10) {
-  const snapshot = await getDocs(leaderboardCollection);
+  const snapshot = await getDocsFromServer(leaderboardCollection);
   return snapshot.docs
     .map((entry) => entry.data())
     .sort((first, second) => Number(second.score) - Number(first.score))
