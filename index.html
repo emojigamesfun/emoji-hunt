@@ -326,6 +326,21 @@
             font-size: 1rem;
         }
 
+        .forgot-password[hidden] {
+            display: none;
+        }
+
+        .forgot-password {
+            display: block;
+            margin: -4px auto 16px;
+            padding: 4px 8px;
+            border: 0;
+            background: transparent;
+            color: var(--aqua);
+            box-shadow: none;
+            font-size: 0.9rem;
+        }
+
         .hunt-countdown {
             position: fixed;
             inset: 0;
@@ -808,6 +823,7 @@
             </div>
             <div class="account-status" id="accountStatus" aria-live="polite"></div>
             <button class="account-submit" id="accountSubmitButton" type="button" hidden>Create account</button>
+            <button class="forgot-password" id="forgotPasswordButton" type="button" hidden>Forgot password?</button>
             <div class="mode-options">
                 <button class="mode-option" data-mode="easy">Easy<span>100 faces | 3 sad | 10s</span></button>
                 <button class="mode-option" data-mode="normal">Normal<span>300 faces | 2 sad | 7s</span></button>
@@ -875,6 +891,7 @@
         const playerPasswordInput = document.getElementById("playerPassword");
         const accountStatus = document.getElementById("accountStatus");
         const accountSubmitButton = document.getElementById("accountSubmitButton");
+        const forgotPasswordButton = document.getElementById("forgotPasswordButton");
         const huntCountdown = document.getElementById("huntCountdown");
         const message = document.getElementById("message");
         const playerLabel = document.getElementById("playerLabel");
@@ -1465,8 +1482,13 @@
             accountAction = action;
             accountMode = action !== "guest";
             accountAuthenticated = false;
+            guestOption.hidden = false;
+            accountOption.hidden = false;
+            signInOption.hidden = false;
+            playerNameInput.hidden = false;
             accountFields.hidden = !accountMode;
             accountSubmitButton.hidden = !accountMode;
+            forgotPasswordButton.hidden = action !== "signin";
             accountSubmitButton.textContent = action === "signin" ? "Login" : "Create account";
             guestOption.classList.toggle("active", action === "guest");
             accountOption.classList.toggle("active", action === "create");
@@ -1476,6 +1498,17 @@
                 : action === "create"
                     ? "Choose a player name, email, and password to create an account."
                     : "Guest scores are saved on this device.";
+        }
+
+        function hideAccountControls() {
+            guestOption.hidden = true;
+            accountOption.hidden = true;
+            signInOption.hidden = true;
+            playerNameInput.hidden = true;
+            accountFields.hidden = true;
+            accountStatus.textContent = "Account ready. Choose a difficulty to begin.";
+            accountSubmitButton.hidden = true;
+            forgotPasswordButton.hidden = true;
         }
 
         guestOption.addEventListener("click", () => setAccountMode("guest"));
@@ -1518,9 +1551,7 @@
             try {
                 await accountFunction(email, password, enteredName);
                 accountAuthenticated = true;
-                accountStatus.textContent = accountAction === "signin"
-                    ? "Login successful. Choose a difficulty."
-                    : "Account created. Choose a difficulty.";
+                hideAccountControls();
                 return true;
             } catch (error) {
                 accountStatus.textContent = error.message || "Could not access the account.";
@@ -1531,6 +1562,30 @@
         }
 
         accountSubmitButton.addEventListener("click", authenticateAccount);
+
+        forgotPasswordButton.addEventListener("click", async () => {
+            const email = playerEmailInput.value.trim();
+            if (!email || !playerEmailInput.validity.valid) {
+                accountStatus.textContent = "Enter your account email first.";
+                playerEmailInput.focus();
+                return;
+            }
+            if (!window.sendSmilePasswordReset) {
+                accountStatus.textContent = "Password reset is still loading. Try again in a moment.";
+                return;
+            }
+
+            forgotPasswordButton.disabled = true;
+            accountStatus.textContent = "Sending password reset email...";
+            try {
+                await window.sendSmilePasswordReset(email);
+                accountStatus.textContent = "Reset email sent. Check your inbox and spam folder.";
+            } catch (error) {
+                accountStatus.textContent = error.message || "Could not send the reset email.";
+            } finally {
+                forgotPasswordButton.disabled = false;
+            }
+        });
 
         modeOptions.forEach((modeOption) => {
             modeOption.addEventListener("click", async () => {
@@ -1641,6 +1696,7 @@
             count = 0;
             correctFound = 0;
             updateScore();
+            setAccountMode("guest");
             timer.textContent = "Choose a mode";
             modePicker.style.display = "flex";
         });
@@ -1655,7 +1711,7 @@
     <script src="script.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import {
             getDatabase,
@@ -1705,6 +1761,21 @@
                     "auth/network-request-failed": "Firebase could not be reached. Check your internet connection."
                 };
                 throw new Error(messages[error.code] || "Could not sign in. Check your Firebase Auth settings.");
+            }
+        };
+
+        window.sendSmilePasswordReset = async function (email) {
+            try {
+                await sendPasswordResetEmail(auth, email);
+            } catch (error) {
+                const messages = {
+                    "auth/invalid-email": "Enter a valid email address.",
+                    "auth/user-not-found": "No account was found with that email.",
+                    "auth/configuration-not-found": "Start Firebase Authentication for this project first.",
+                    "auth/operation-not-allowed": "Enable Email/Password in Firebase Authentication settings first.",
+                    "auth/network-request-failed": "Firebase could not be reached. Check your internet connection."
+                };
+                throw new Error(messages[error.code] || "Could not send the reset email.");
             }
         };
 
