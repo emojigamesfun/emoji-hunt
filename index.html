@@ -1793,7 +1793,8 @@
             getDatabase,
             ref,
             push,
-            get
+            get,
+            onValue
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const app = initializeApp(window.SMILE_FIREBASE);
@@ -1966,6 +1967,13 @@
                 window.renderLocalLeaderboard();
             }
         };
+
+        onValue(leaderboardRef, () => {
+            window.fetchLeaderboard();
+            window.fetchGlobalHighScore();
+        }, (error) => {
+            console.error("Realtime leaderboard subscription failed: ", error);
+        });
 
         window.fetchLeaderboard();
         window.fetchGlobalHighScore();
