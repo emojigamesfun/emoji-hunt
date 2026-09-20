@@ -422,6 +422,33 @@
             list-style: none;
         }
 
+        .leaderboard-columns {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .leaderboard-column {
+            min-width: 0;
+            padding: 9px;
+            border: 1px solid rgba(169, 239, 231, 0.24);
+            border-radius: 8px;
+            background: rgba(2, 18, 36, 0.22);
+        }
+
+        .leaderboard-column h3 {
+            margin: 0 0 6px;
+            color: var(--sun);
+            font-size: 0.95rem;
+        }
+
+        @media (max-width: 560px) {
+            .leaderboard-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
         #globalLeaderboard {
             max-height: min(70vh, 620px);
         }
@@ -832,7 +859,20 @@
             <div class="leaderboard leaderboard-panel" id="globalLeaderboard" role="tabpanel">
                 <h2>Global leaderboard</h2>
                 <div id="leaderboard-display">Loading top score...</div>
-                <ol class="leaderboard-list" id="leaderboard-list" aria-label="Global leaderboard"></ol>
+                <div class="leaderboard-columns">
+                    <section class="leaderboard-column">
+                        <h3>Easy</h3>
+                        <ol class="leaderboard-list" id="leaderboard-list-easy" aria-label="Easy leaderboard"></ol>
+                    </section>
+                    <section class="leaderboard-column">
+                        <h3>Normal</h3>
+                        <ol class="leaderboard-list" id="leaderboard-list-normal" aria-label="Normal leaderboard"></ol>
+                    </section>
+                    <section class="leaderboard-column">
+                        <h3>Hard</h3>
+                        <ol class="leaderboard-list" id="leaderboard-list-hard" aria-label="Hard leaderboard"></ol>
+                    </section>
+                </div>
             </div>
         </div>
     </div>
@@ -917,6 +957,7 @@
             hard: { faceCount: 400, sadCount: 1, timeLimit: 6 }
         };
         let selectedMode = null;
+        let selectedModeName = "";
         let accountMode = false;
         let accountAction = "create";
         let accountAuthenticated = false;
@@ -945,6 +986,7 @@
         let playerName = savedPlayerName;
         let bestKey = "";
         const leaderboardKey = "smile-global-leaderboard";
+        const leaderboardModesKey = "smile-global-leaderboard-modes";
         const leaderboardChannelName = "smile-global-leaderboard";
         const leaderboardChannel = "BroadcastChannel" in window
             ? new BroadcastChannel(leaderboardChannelName)
@@ -1031,30 +1073,57 @@
             }
         }
 
+        function getLeaderboardModes() {
+            try {
+                return JSON.parse(localStorage.getItem(leaderboardModesKey)) || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function formatModeName(mode) {
+            return mode ? mode.charAt(0).toUpperCase() + mode.slice(1).toLowerCase() : "Mode unknown";
+        }
+
+        window.formatModeName = formatModeName;
+
         function getSortedLeaderboard(leaderboard) {
+            const modesByPlayer = getLeaderboardModes();
             return Object.entries(leaderboard || {})
-                .map(([key, score]) => ({ name: formatDisplayName(key), score: Number(score) || 0 }))
+                .map(([key, score]) => ({ name: formatDisplayName(key), score: Number(score) || 0, mode: modesByPlayer[key] || "" }))
                 .sort((first, second) => second.score - first.score || first.name.localeCompare(second.name));
         }
 
+        function renderModeLeaderboards(scores, currentName) {
+            const lists = {
+                easy: document.getElementById("leaderboard-list-easy"),
+                normal: document.getElementById("leaderboard-list-normal"),
+                hard: document.getElementById("leaderboard-list-hard")
+            };
+
+            Object.entries(lists).forEach(([mode, listElement]) => {
+                if (!listElement) return;
+                listElement.replaceChildren();
+                scores.filter((data) => data.mode === mode).forEach((data, index) => {
+                    const item = document.createElement("li");
+                    item.textContent = "#" + (index + 1) + " " + data.name + " - " + data.score + " pts";
+                    if (data.name.toLowerCase() === currentName) item.classList.add("current-player");
+                    listElement.appendChild(item);
+                });
+            });
+        }
+
         window.renderLocalLeaderboard = function () {
-            const listElement = document.getElementById("leaderboard-list");
             const displayElement = document.getElementById("leaderboard-display");
-            if (!listElement || !displayElement) return;
+            if (!displayElement) return;
 
             const scores = getSortedLeaderboard(getLeaderboard());
-            listElement.replaceChildren();
             displayElement.textContent = scores.length
                 ? "Top Score: " + scores[0].name + " - " + scores[0].score + " pts"
                 : "No scores yet";
 
             const currentName = String(window.currentPlayerName || playerName || "").trim().toLowerCase();
-            scores.forEach((data, index) => {
-                const item = document.createElement("li");
-                item.textContent = "#" + (index + 1) + " " + data.name + " - " + data.score + " pts";
-                if (data.name.toLowerCase() === currentName) item.classList.add("current-player");
-                listElement.appendChild(item);
-            });
+            renderModeLeaderboards(scores, currentName);
 
             const currentIndex = scores.findIndex((data) => data.name.toLowerCase() === currentName);
             globalRank.textContent = currentIndex < 0 ? "Global rank: -" : "Global rank: #" + (currentIndex + 1);
@@ -1092,13 +1161,19 @@
             if (!safeName) return;
 
             const leaderboard = getLeaderboard();
+            const leaderboardModes = getLeaderboardModes();
             const nameKey = safeName.toLowerCase();
-            leaderboard[nameKey] = Math.max(Number(leaderboard[nameKey]) || 0, Number(bestCount) || 0);
+            const nextScore = Number(bestCount) || 0;
+            if (nextScore >= (Number(leaderboard[nameKey]) || 0)) {
+                leaderboard[nameKey] = nextScore;
+                if (selectedModeName) leaderboardModes[nameKey] = selectedModeName;
+            }
             localStorage.setItem(leaderboardKey, JSON.stringify(leaderboard));
+            localStorage.setItem(leaderboardModesKey, JSON.stringify(leaderboardModes));
             notifyLeaderboardSync(leaderboard);
             renderLeaderboard();
             if (window.submitGlobalScore) {
-                window.submitGlobalScore(safeName, bestCount);
+                window.submitGlobalScore(safeName, bestCount, selectedModeName);
             }
             if (window.smileLeaderboardSync) {
                 window.smileLeaderboardSync.syncLeaderboardScore(safeName, bestCount).catch(() => {});
@@ -1631,9 +1706,10 @@
                 bestCount = Number(rememberedBest) || 0;
                 setCookie(bestKey, String(bestCount));
                 localStorage.setItem(bestKey, String(bestCount));
+                selectedMode = modes[modeOption.dataset.mode];
+                selectedModeName = modeOption.dataset.mode;
                 playerLabel.textContent = "Player: " + playerName + " | Lv. " + getLevel(count);
                 saveLeaderboardScore();
-                selectedMode = modes[modeOption.dataset.mode];
                 modePicker.style.display = "none";
                 firstHunt = true;
                 buttonClicks = 0;
@@ -1692,6 +1768,7 @@
             challengeActive = false;
             button.disabled = false;
             selectedMode = null;
+            selectedModeName = "";
             buttonClicks = 0;
             count = 0;
             correctFound = 0;
@@ -1726,8 +1803,13 @@
 
         async function ensureLeaderboardAuth() {
             if (auth.currentUser) return auth.currentUser;
-            await signInAnonymously(auth);
-            return auth.currentUser;
+            try {
+                await signInAnonymously(auth);
+                return auth.currentUser;
+            } catch (error) {
+                console.warn("Anonymous sign-in is unavailable; using public leaderboard access.", error);
+                return null;
+            }
         }
 
         window.createSmileAccount = async function (email, password, displayName) {
@@ -1809,7 +1891,7 @@
                     const data = scoreSnapshot.val() || {};
                     const score = Number(data.score) || 0;
                     if (!topScore || score > topScore.score) {
-                        topScore = { name: String(data.name || "Anonymous"), score };
+                        topScore = { name: String(data.name || "Anonymous"), score, mode: String(data.mode || "") };
                     }
                 });
 
@@ -1818,14 +1900,14 @@
                     return;
                 }
 
-                displayElement.textContent = "Top Score: " + topScore.name + " - " + topScore.score + " pts";
+                displayElement.textContent = "Top Score: " + topScore.name + " - " + topScore.score + " pts (" + window.formatModeName(topScore.mode) + ")";
             } catch (error) {
                 displayElement.textContent = "Global high score unavailable";
                 console.error("Error reading global high score: ", error);
             }
         };
 
-        window.submitGlobalScore = async function (playerName, score) {
+        window.submitGlobalScore = async function (playerName, score, mode) {
             try {
                 await ensureLeaderboardAuth();
                 const safeName = String(playerName || "Player").trim() || "Player";
@@ -1833,6 +1915,7 @@
                 await push(leaderboardRef, {
                     name: safeName,
                     score: numericScore,
+                    mode: mode || "",
                     timestamp: Date.now()
                 });
                 console.log("Score saved successfully!");
@@ -1844,12 +1927,10 @@
         };
 
         window.fetchLeaderboard = async function () {
-            const listElement = document.getElementById("leaderboard-list");
-            if (!listElement) return;
+            if (!document.getElementById("leaderboard-list-easy")) return;
 
             try {
                 const snapshot = await get(leaderboardRef);
-                listElement.replaceChildren();
 
                 const scoresByPlayer = new Map(window.getSortedLeaderboard(getLeaderboard()).map((data) => [data.name.toLowerCase(), data]));
                 snapshot.forEach((scoreSnapshot) => {
@@ -1858,22 +1939,20 @@
                     const key = name.toLowerCase();
                     const score = Number(data.score) || 0;
                     const previous = scoresByPlayer.get(key);
-                    if (!previous || score > previous.score) scoresByPlayer.set(key, { name, score });
+                    const mode = String(data.mode || "");
+                    if (!previous || score > previous.score || (!previous.mode && mode)) {
+                        scoresByPlayer.set(key, { name, score: Math.max(score, previous ? previous.score : 0), mode: mode || (previous && previous.mode) || "" });
+                    }
                 });
 
                 const scores = Array.from(scoresByPlayer.values()).sort((first, second) => second.score - first.score || first.name.localeCompare(second.name));
                 const localScores = Object.fromEntries(Array.from(scoresByPlayer.entries()).map(([key, data]) => [key, data.score]));
+                const localModes = Object.fromEntries(Array.from(scoresByPlayer.entries()).filter(([, data]) => data.mode).map(([key, data]) => [key, data.mode]));
                 localStorage.setItem("smile-global-leaderboard", JSON.stringify(localScores));
+                localStorage.setItem("smile-global-leaderboard-modes", JSON.stringify(localModes));
                 const currentName = String(window.currentPlayerName || document.getElementById("playerName").value || "").trim().toLowerCase();
                 const currentIndex = scores.findIndex((data) => data.name.toLowerCase() === currentName);
-
-                scores.forEach((data) => {
-                    const item = document.createElement("li");
-                    const rank = scores.findIndex((scoreData) => scoreData.name.toLowerCase() === data.name.toLowerCase()) + 1;
-                    item.textContent = "#" + rank + " " + data.name + " - " + data.score + " pts";
-                    if (data.name.toLowerCase() === currentName) item.classList.add("current-player");
-                    listElement.appendChild(item);
-                });
+                renderModeLeaderboards(scores, currentName);
 
                 if (currentIndex < 0) {
                     globalRank.textContent = "Global rank: -";
