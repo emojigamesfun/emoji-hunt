@@ -528,6 +528,55 @@
             overflow: hidden;
         }
 
+        .pixel-click-effect {
+            position: fixed;
+            z-index: 110;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+
+        .pixel-click-effect__piece {
+            position: absolute;
+            width: var(--pixel-size);
+            height: var(--pixel-size);
+            background: var(--pixel-color);
+            animation: pixel-click-fall 850ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+            animation-delay: var(--pixel-delay);
+        }
+
+        @keyframes pixel-click-fall {
+            0% {
+                opacity: 0;
+                transform: translate(0, 0) scale(0.5);
+            }
+            12% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            42% {
+                opacity: 1;
+                transform: translate(var(--pixel-drift), var(--pixel-rise));
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--pixel-drift-end), var(--pixel-fall)) scale(0.7);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .pixel-click-effect__piece {
+                animation-name: pixel-click-fade;
+                animation-duration: 180ms;
+                animation-delay: 0ms;
+            }
+
+            @keyframes pixel-click-fade {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+        }
+
         .burst-face {
             position: absolute;
             display: flex;
@@ -1282,12 +1331,42 @@
                 face.style.setProperty("--face-size", faceBoxSize / 16 + "rem");
                 face.addEventListener("click", (event) => {
                     event.stopPropagation();
+                    showPixelClickEffect(event.currentTarget, event);
                     failChallenge();
                 });
                 burst.appendChild(face);
             }
 
             document.body.appendChild(burst);
+        }
+
+        function showPixelClickEffect(target, event) {
+            const bounds = target.getBoundingClientRect();
+            const effect = document.createElement("div");
+            const colors = ["#ffd166", "#ff715b", "#5eead4", "#ffffff"];
+            const hasPointerPosition = event && (event.clientX || event.clientY);
+            effect.className = "pixel-click-effect";
+            effect.setAttribute("aria-hidden", "true");
+            effect.style.left = (hasPointerPosition ? event.clientX : bounds.left + bounds.width / 2) + "px";
+            effect.style.top = (hasPointerPosition ? event.clientY : bounds.top + bounds.height / 2) + "px";
+
+            for (let i = 0; i < 12; i++) {
+                const pixel = document.createElement("span");
+                pixel.className = "pixel-click-effect__piece";
+                pixel.style.left = (Math.random() * 24 - 12) + "px";
+                pixel.style.top = (Math.random() * 12 - 6) + "px";
+                pixel.style.setProperty("--pixel-size", (5 + Math.random() * 4) + "px");
+                pixel.style.setProperty("--pixel-color", colors[Math.floor(Math.random() * colors.length)]);
+                pixel.style.setProperty("--pixel-drift", (Math.random() * 76 - 38) + "px");
+                pixel.style.setProperty("--pixel-rise", -(36 + Math.random() * 54) + "px");
+                pixel.style.setProperty("--pixel-drift-end", (Math.random() * 110 - 55) + "px");
+                pixel.style.setProperty("--pixel-fall", (20 + Math.random() * 35) + "px");
+                pixel.style.setProperty("--pixel-delay", (Math.random() * 70) + "ms");
+                effect.appendChild(pixel);
+            }
+
+            document.body.appendChild(effect);
+            setTimeout(() => effect.remove(), 1000);
         }
 
         function runFirstCountdown(onComplete) {
@@ -1418,7 +1497,10 @@
                 sadTarget.style.width = faceBoxSize + "px";
                 sadTarget.style.height = faceBoxSize + "px";
                 sadTarget.style.fontSize = faceBoxSize / 16 + "rem";
-                sadTarget.addEventListener("click", completeChallenge);
+                sadTarget.addEventListener("click", (event) => {
+                    showPixelClickEffect(event.currentTarget, event);
+                    completeChallenge();
+                });
                 sadTargets.push(sadTarget);
                 (emojiBurst || document.body).appendChild(sadTarget);
             }
@@ -1532,9 +1614,10 @@
             setTimeout(() => confettiContainer.remove(), 1800);
         }
 
-        button.addEventListener("click", function () {
+        button.addEventListener("click", function (event) {
             if (challengeActive) return;
 
+            showPixelClickEffect(event.currentTarget, event);
             playSuccessClick();
             playHoorayKazoo();
             button.classList.remove("button-pop");
